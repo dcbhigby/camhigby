@@ -6482,17 +6482,23 @@ map.on("load", async () => {
     // restore server / embedded / autosave first so strikes appear immediately
     let loaded = false;
     let loadedFromLiteState = false;
+    let liveStateWasEmpty = false;
     let liveStateFetchFailed = false;
     if (canUseServerState()){
       try{
         const serverData = await fetchServerState({ lite:true });
         if (serverData?.state && Array.isArray(serverData.state.strikes)){
-          if (typeof serverData.savedAt === "string") lastServerSavedAt = serverData.savedAt;
-          loadFromObject(serverData.state);
-          autosaveLocal({ skipServer:true });
-          loadedFromLiteState = !!serverData?.lite;
-          setStateStatus(loadedFromLiteState ? "loaded live state (fast)" : "loaded live server state");
-          loaded = true;
+          const liveCount = serverData.state.strikes.length;
+          if (liveCount > 0){
+            if (typeof serverData.savedAt === "string") lastServerSavedAt = serverData.savedAt;
+            loadFromObject(serverData.state);
+            autosaveLocal({ skipServer:true });
+            loadedFromLiteState = !!serverData?.lite;
+            setStateStatus(loadedFromLiteState ? "loaded live state (fast)" : "loaded live server state");
+            loaded = true;
+          } else {
+            liveStateWasEmpty = true;
+          }
         }
       }catch{
         liveStateFetchFailed = true;
@@ -6542,7 +6548,7 @@ map.on("load", async () => {
         setStateStatus("ready");
       }
     } else if (!loaded) {
-      setStateStatus("ready");
+      setStateStatus(liveStateWasEmpty ? "live state empty (awaiting admin publish)" : "ready");
     }
 
     applyFlightOpacity();

@@ -33,6 +33,7 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "CamHigbyAdmin2026!")
 COOKIE_NAME = "admin_session"
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "43200"))  # 12 hours
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0") == "1"
+APP_REV = os.getenv("APP_REV", os.getenv("RENDER_GIT_COMMIT", "dev"))[:40]
 
 SESSIONS = {}  # token -> expiry_unix_ts
 
@@ -54,6 +55,20 @@ class AppHandler(SimpleHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
         super().log_message(fmt, *args)
+
+    def end_headers(self):
+        # Prevent stale cached app files from serving old UI/state logic.
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        # On deploy revision change, ask browser to clear HTTP cache.
+        req_path = urlparse(self.path).path
+        if req_path in ("/", f"/{INDEX_FILE}"):
+            prev_rev = self.get_cookie_value("app_rev") or ""
+            if APP_REV and prev_rev != APP_REV:
+                self.send_header("Clear-Site-Data", "\"cache\"")
+                self.send_header("Set-Cookie", f"app_rev={APP_REV}; Path=/; SameSite=Lax; Max-Age=31536000")
+        super().end_headers()
 
     def end_json(self, status: int, payload: dict, extra_headers=None):
         raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
