@@ -5487,6 +5487,8 @@ document.getElementById("btnDeleteStrike").addEventListener("click", () => {
 const MAX_UPLOAD_IMAGE_DIM = 1400;
 const JPEG_OUTPUT_QUALITY = 0.78;
 const SKIP_REENCODE_MAX_BYTES = 320 * 1024;
+const MAX_LIVE_IMAGE_TOTAL_CHARS = 22 * 1024 * 1024;
+const MAX_LIVE_IMAGE_SINGLE_CHARS = 2 * 1024 * 1024;
 function readFileAsDataURL(file){
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -5502,6 +5504,30 @@ function loadImageFromSrc(src){
     img.onerror = reject;
     img.src = src;
   });
+}
+async function compressDataUrlImage(dataUrl){
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return "";
+  if (dataUrl.includes("image/svg+xml")) return dataUrl;
+  try{
+    const img = await loadImageFromSrc(dataUrl);
+    const srcW = img.naturalWidth || img.width || 1;
+    const srcH = img.naturalHeight || img.height || 1;
+    const maxSide = Math.max(srcW, srcH);
+    const scale = maxSide > MAX_UPLOAD_IMAGE_DIM ? (MAX_UPLOAD_IMAGE_DIM / maxSide) : 1;
+    const outW = Math.max(1, Math.round(srcW * scale));
+    const outH = Math.max(1, Math.round(srcH * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return dataUrl;
+    ctx.drawImage(img, 0, 0, outW, outH);
+    const compressed = canvas.toDataURL("image/jpeg", JPEG_OUTPUT_QUALITY);
+    if (!compressed.startsWith("data:image/")) return dataUrl;
+    return (compressed.length < dataUrl.length) ? compressed : dataUrl;
+  }catch{
+    return dataUrl;
+  }
 }
 async function fileToDataURL(file){
   const original = await readFileAsDataURL(file);
@@ -5528,6 +5554,38 @@ async function fileToDataURL(file){
   }catch{
     return original;
   }
+}
+async function normalizeImportedStateForLive(rawState){
+  const state = deepClone(rawState || {});
+  if (!Array.isArray(state?.strikes)) return { state, compressed:0, dropped:0 };
+  let totalChars = 0;
+  let compressed = 0;
+  let dropped = 0;
+  for (const strike of state.strikes){
+    if (!Array.isArray(strike?.images)) continue;
+    const nextImages = [];
+    for (const imgRaw of strike.images){
+      if (typeof imgRaw !== "string" || !imgRaw.startsWith("data:image/")) continue;
+      let img = imgRaw;
+      if (img.length > SKIP_REENCODE_MAX_BYTES){
+        const compressedImg = await compressDataUrlImage(imgRaw);
+        if (compressedImg.length < imgRaw.length) compressed++;
+        img = compressedImg;
+      }
+      if (img.length > MAX_LIVE_IMAGE_SINGLE_CHARS){
+        dropped++;
+        continue;
+      }
+      if ((totalChars + img.length) > MAX_LIVE_IMAGE_TOTAL_CHARS){
+        dropped++;
+        continue;
+      }
+      nextImages.push(img);
+      totalChars += img.length;
+    }
+    strike.images = nextImages;
+  }
+  return { state, compressed, dropped };
 }
 async function appendImagesToActiveStrike(fileList){
   const s = strikes.find(x => x.id === activeStrikeId);
@@ -6165,16 +6223,19 @@ document.getElementById("btnImport")?.addEventListener("click", async () => {
     try{
       const prevState = serializeStateObject();
       const txt = await file.text();
-      const obj = JSON.parse(txt);
-      if (canUseServerState() && isAdminMode()){
+      const parsed = JSON.parse(txt);
+      const { state: obj, compressed, dropped } = await normalizeImportedStateForLive(parsed);
+      const liveAdmin = canUseServerState() && isAdminMode();
+      if (liveAdmin){
         // Hosted mode: import must publish to server so refresh/users see it.
         await saveStateToServer(obj);
       }
       loadFromObject(obj);
-      autosaveLocal();
+      autosaveLocal({ skipServer: liveAdmin });
       currentHtmlFileHandle = null;
       pushUndo({ type:"import_state", prevState });
-      setStateStatus(canUseServerState() ? "imported json + published live default" : "imported json");
+      const note = (compressed || dropped) ? ` (images optimized: ${compressed}, dropped: ${dropped})` : "";
+      setStateStatus((liveAdmin ? "imported json + published live default" : "imported json") + note);
     }catch(err){
       alert("Import failed: " + (err?.message || String(err)));
       setStateStatus("import failed");
