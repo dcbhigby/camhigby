@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 ROOT_DIR = Path(__file__).resolve().parent
 INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
 STATE_FILE = Path(os.getenv("STATE_FILE", str(ROOT_DIR / "live_state.json")))
-MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(64 * 1024 * 1024)))
+MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(256 * 1024 * 1024)))
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
 # Set this in your shell for production:
@@ -170,8 +170,12 @@ class AppHandler(SimpleHTTPRequestHandler):
             if content_length <= 0:
                 self.end_json(HTTPStatus.BAD_REQUEST, {"error": "missing request body"})
                 return
-            if content_length > MAX_STATE_BYTES:
-                self.end_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "state too large"})
+            if MAX_STATE_BYTES > 0 and content_length > MAX_STATE_BYTES:
+                limit_mb = round(MAX_STATE_BYTES / (1024 * 1024), 2)
+                self.end_json(
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    {"error": f"state too large (limit {limit_mb} MB)"},
+                )
                 return
             body = self.read_json_body()
             state = body.get("state")
