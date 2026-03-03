@@ -6482,6 +6482,7 @@ map.on("load", async () => {
     // restore server / embedded / autosave first so strikes appear immediately
     let loaded = false;
     let loadedFromLiteState = false;
+    let loadedFromFallback = false;
     let liveStateWasEmpty = false;
     let liveStateFetchFailed = false;
     if (canUseServerState()){
@@ -6506,7 +6507,7 @@ map.on("load", async () => {
     }
     try{
       if (!loaded){
-        if (canUseServerState()){
+        if (canUseServerState() && isAdminMode()){
           const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY);
           if (saved){
             const obj = JSON.parse(saved);
@@ -6515,6 +6516,7 @@ map.on("load", async () => {
               autosaveLocal({ skipServer:true });
               setStateStatus(liveStateFetchFailed ? "loaded cached state (live fetch failed)" : "loaded cached state");
               loaded = true;
+              loadedFromFallback = true;
             }
           }
         }
@@ -6528,6 +6530,7 @@ map.on("load", async () => {
               autosaveLocal({ skipServer:true });
               setStateStatus("loaded embedded state");
               loaded = true;
+              loadedFromFallback = true;
             }
           }
         }
@@ -6568,6 +6571,18 @@ map.on("load", async () => {
     }
 
     suppressServerAutosave = false;
+    if (canUseServerState() && isAdminMode() && liveStateWasEmpty && loadedFromFallback){
+      try{
+        const current = serializeStateObject();
+        const count = Array.isArray(current?.strikes) ? current.strikes.length : 0;
+        if (count > 0){
+          await saveStateToServer(current);
+          setStateStatus(`recovered live state from admin cache (${count} strikes)`);
+        }
+      }catch{
+        setStateStatus("live state recovery failed");
+      }
+    }
     startLiveStatePolling();
 
     // load decorative basemap data in background (don't block strike rendering)
