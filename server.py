@@ -3,6 +3,8 @@ import json
 import os
 import secrets
 import time
+import hashlib
+import re
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -15,6 +17,12 @@ INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
 DEFAULT_STATE_FILE = Path("/var/data/live_state.json") if Path("/var/data").exists() else (ROOT_DIR / "live_state.json")
 STATE_FILE = Path(os.getenv("STATE_FILE", str(DEFAULT_STATE_FILE)))
 MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(256 * 1024 * 1024)))
+DEFAULT_VIEWER_EMAIL_FILE = Path("/var/data/viewer_email_gate.json") if Path("/var/data").exists() else (ROOT_DIR / "viewer_email_gate.json")
+VIEWER_EMAIL_FILE = Path(os.getenv("VIEWER_EMAIL_FILE", str(DEFAULT_VIEWER_EMAIL_FILE)))
+VIEWER_EMAIL_COOKIE = "viewer_gate_pass"
+VIEWER_EMAIL_TTL_SECONDS = int(os.getenv("VIEWER_EMAIL_TTL_SECONDS", str(30 * 24 * 60 * 60)))
+IP_HASH_SALT = os.getenv("IP_HASH_SALT", "retro-war-map-ip-salt-v1")
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
 # Set this in your shell for production:
@@ -82,6 +90,18 @@ class AppHandler(SimpleHTTPRequestHandler):
         morsel = c.get(COOKIE_NAME)
         return morsel.value if morsel else None
 
+    def get_cookie_value(self, key: str):
+        raw = self.headers.get("Cookie", "")
+        if not raw:
+            return None
+        c = SimpleCookie()
+        try:
+            c.load(raw)
+        except Exception:
+            return None
+        morsel = c.get(key)
+        return morsel.value if morsel else None
+
     def is_admin_session(self):
         prune_sessions()
         tok = self.get_cookie_token()
@@ -107,12 +127,41 @@ class AppHandler(SimpleHTTPRequestHandler):
             parts.append("Secure")
         return "; ".join(parts)
 
+    def make_viewer_gate_cookie(self, token: str, max_age: int):
+        parts = [
+            f"{VIEWER_EMAIL_COOKIE}={token}",
+            "HttpOnly",
+            "Path=/",
+            "SameSite=Lax",
+            f"Max-Age={max_age}",
+        ]
+        if COOKIE_SECURE:
+            parts.append("Secure")
+        return "; ".join(parts)
+
+    def get_client_ip(self):
+        xff = self.headers.get("X-Forwarded-For", "")
+        if xff:
+            return xff.split(",")[0].strip()
+        return self.client_address[0] if self.client_address else ""
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
 
         if path == "/api/me":
             self.end_json(HTTPStatus.OK, {"admin": self.is_admin_session()})
+            return
+        if path == "/api/viewer-email-status":
+            cookie_ok = bool(self.get_cookie_value(VIEWER_EMAIL_COOKIE))
+            ip_hash = hash_client_ip(self.get_client_ip())
+            data = read_viewer_email_data()
+            ip_ok = bool(data.get("byIp", {}).get(ip_hash))
+            submitted = cookie_ok or ip_ok
+            headers = None
+            if submitted and not cookie_ok:
+                headers = {"Set-Cookie": self.make_viewer_gate_cookie(secrets.token_urlsafe(18), VIEWER_EMAIL_TTL_SECONDS)}
+            self.end_json(HTTPStatus.OK, {"ok": True, "submitted": submitted}, extra_headers=headers)
             return
         if path == "/api/state":
             payload = read_state_payload()
@@ -192,6 +241,41 @@ class AppHandler(SimpleHTTPRequestHandler):
                 return
             self.end_json(HTTPStatus.OK, {"ok": True, "savedAt": saved_at})
             return
+        if path == "/api/viewer-email":
+            body = self.read_json_body()
+            email = str(body.get("email", "")).strip().lower()
+            if not EMAIL_RE.match(email):
+                self.end_json(HTTPStatus.BAD_REQUEST, {"error": "invalid email"})
+                return
+            ip_hash = hash_client_ip(self.get_client_ip())
+            ua = str(body.get("userAgent", "")).strip()[:512]
+            page = str(body.get("page", "")).strip()[:1024]
+            now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            try:
+                data = read_viewer_email_data()
+                by_ip = data.setdefault("byIp", {})
+                entries = data.setdefault("entries", [])
+                by_ip[ip_hash] = {"email": email, "submittedAt": now_iso}
+                entries.append({
+                    "email": email,
+                    "submittedAt": now_iso,
+                    "ipHash": ip_hash,
+                    "userAgent": ua,
+                    "page": page,
+                })
+                # Keep log bounded.
+                if len(entries) > 50000:
+                    del entries[0 : len(entries) - 50000]
+                write_viewer_email_data(data)
+            except Exception as exc:
+                self.end_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"failed to save viewer email: {exc}"})
+                return
+            self.end_json(
+                HTTPStatus.OK,
+                {"ok": True, "submitted": True},
+                extra_headers={"Set-Cookie": self.make_viewer_gate_cookie(secrets.token_urlsafe(18), VIEWER_EMAIL_TTL_SECONDS)},
+            )
+            return
 
         self.end_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
@@ -223,6 +307,39 @@ def write_state_payload(payload: dict):
     tmp = STATE_FILE.with_suffix(STATE_FILE.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
     tmp.replace(STATE_FILE)
+
+
+def hash_client_ip(ip: str) -> str:
+    base = f"{IP_HASH_SALT}:{ip or ''}".encode("utf-8")
+    return hashlib.sha256(base).hexdigest()
+
+
+def read_viewer_email_data() -> dict:
+    try:
+        if not VIEWER_EMAIL_FILE.exists():
+            return {"byIp": {}, "entries": []}
+        raw = VIEWER_EMAIL_FILE.read_text(encoding="utf-8")
+        if not raw.strip():
+            return {"byIp": {}, "entries": []}
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return {"byIp": {}, "entries": []}
+        by_ip = data.get("byIp")
+        entries = data.get("entries")
+        if not isinstance(by_ip, dict):
+            by_ip = {}
+        if not isinstance(entries, list):
+            entries = []
+        return {"byIp": by_ip, "entries": entries}
+    except Exception:
+        return {"byIp": {}, "entries": []}
+
+
+def write_viewer_email_data(payload: dict):
+    VIEWER_EMAIL_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = VIEWER_EMAIL_FILE.with_suffix(VIEWER_EMAIL_FILE.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+    tmp.replace(VIEWER_EMAIL_FILE)
 
 
 def main():

@@ -1671,6 +1671,8 @@ const SECURITY_KEY = "retroWarMap.security.v1";
 const ADMIN_SESSION_KEY = "retroWarMap.admin.session.v1";
 const VIEWER_EMAIL_KEY = "retroWarMap.viewerEmail.v1";
 const VIEWER_EMAIL_LOG_KEY = "retroWarMap.viewerEmailLog.v1";
+const VIEWER_EMAIL_API = "/api/viewer-email";
+const VIEWER_EMAIL_STATUS_API = "/api/viewer-email-status";
 // Optional: set this to your deployed Google Apps Script Web App URL.
 // Example: https://script.google.com/macros/s/AKfycb.../exec
 const GOOGLE_SHEETS_WEBHOOK_URL = "";
@@ -1712,6 +1714,7 @@ let viewerOptionsOpen = false;
 let viewerEmailSubmitted = false;
 let viewerEmailGateOpen = false;
 let viewerEmailTimer = null;
+let viewerEmailStatusReady = false;
 
 function isLocalBypassAuthMode(){
   return window.location.protocol === "file:";
@@ -1797,6 +1800,47 @@ async function submitViewerEmailToSheet(email){
   });
   return { ok:true, skipped:false };
 }
+async function submitViewerEmailToServer(email){
+  if (isLocalBypassAuthMode()) return { ok:true, skipped:true };
+  const res = await fetch(VIEWER_EMAIL_API, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({
+      email: String(email || "").trim(),
+      page: window.location.href,
+      userAgent: navigator.userAgent || ""
+    })
+  });
+  let data = null;
+  try{ data = await res.json(); }catch{ data = null; }
+  if (!res.ok){
+    throw new Error(data?.error || `email submit failed (${res.status})`);
+  }
+  return data || { ok:true };
+}
+async function refreshViewerEmailStatusFromServer(){
+  if (isLocalBypassAuthMode()){
+    viewerEmailStatusReady = true;
+    return;
+  }
+  try{
+    const res = await fetch(VIEWER_EMAIL_STATUS_API, {
+      method: "GET",
+      credentials: "same-origin"
+    });
+    const data = await res.json();
+    if (res.ok && data?.submitted){
+      viewerEmailSubmitted = true;
+      try{ sessionStorage.setItem(VIEWER_EMAIL_KEY, "1"); }catch{}
+      closeViewerEmailGate();
+    }
+  }catch{
+    // keep existing local/session fallback behavior
+  }finally{
+    viewerEmailStatusReady = true;
+  }
+}
 function closeViewerEmailGate(){
   viewerEmailGateOpen = false;
   if (!viewerEmailWrap) return;
@@ -1807,7 +1851,7 @@ function closeViewerEmailGate(){
   }
 }
 function openViewerEmailGate(){
-  if (isAdminMode() || viewerEmailSubmitted) return;
+  if (isAdminMode() || viewerEmailSubmitted || !viewerEmailStatusReady) return;
   viewerEmailGateOpen = true;
   if (!viewerEmailWrap) return;
   viewerEmailWrap.style.display = "flex";
@@ -1822,7 +1866,7 @@ function scheduleViewerEmailGate(){
     clearTimeout(viewerEmailTimer);
     viewerEmailTimer = null;
   }
-  if (isAdminMode() || viewerEmailSubmitted) return;
+  if (isAdminMode() || viewerEmailSubmitted || !viewerEmailStatusReady) return;
   viewerEmailTimer = setTimeout(() => {
     openViewerEmailGate();
   }, 30000);
@@ -2126,6 +2170,17 @@ if (viewerEmailForm){
       }
       return;
     }
+    let serverStatus = "skipped";
+    try{
+      const serverRes = await submitViewerEmailToServer(email);
+      serverStatus = serverRes?.skipped ? "skipped" : "saved";
+    }catch(err){
+      if (viewerEmailErr){
+        viewerEmailErr.textContent = "Could not submit email right now. Please try again.";
+        viewerEmailErr.classList.add("show");
+      }
+      return;
+    }
     let webhookStatus = "not_configured";
     try{
       const res = await submitViewerEmailToSheet(email);
@@ -2137,8 +2192,8 @@ if (viewerEmailForm){
     viewerEmailSubmitted = true;
     try{ sessionStorage.setItem(VIEWER_EMAIL_KEY, "1"); }catch{}
     closeViewerEmailGate();
-    setStateStatus(webhookStatus === "failed"
-      ? "viewer email saved locally (webhook failed)"
+    setStateStatus((webhookStatus === "failed" && serverStatus === "saved")
+      ? "viewer email submitted (sheet failed)"
       : "viewer email submitted");
   });
 }
@@ -2198,11 +2253,22 @@ updateSecurityUI();
 try{ viewerEmailSubmitted = sessionStorage.getItem(VIEWER_EMAIL_KEY) === "1"; }catch{ viewerEmailSubmitted = false; }
 setAdminMode(false);
 if (isLocalBypassAuthMode()){
+  viewerEmailStatusReady = true;
   setAdminMode(sessionStorage.getItem(ADMIN_SESSION_KEY) === "1");
 } else {
-  authRequest("/api/me")
-    .then((data) => setAdminMode(!!data.admin))
-    .catch(() => setAdminMode(false));
+  Promise.allSettled([
+    authRequest("/api/me"),
+    refreshViewerEmailStatusFromServer()
+  ]).then((results) => {
+    const authRes = results[0];
+    if (authRes?.status === "fulfilled"){
+      setAdminMode(!!authRes.value?.admin);
+    } else {
+      setAdminMode(false);
+    }
+    if (!viewerEmailStatusReady) viewerEmailStatusReady = true;
+    if (!isAdminMode()) scheduleViewerEmailGate();
+  });
 }
 
 /************ Trackpad pan + pinch zoom ************/
