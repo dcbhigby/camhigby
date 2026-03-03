@@ -5,11 +5,12 @@ import secrets
 import time
 import hashlib
 import re
+import gzip
 from http import HTTPStatus
 from http.cookies import SimpleCookie
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -54,10 +55,18 @@ class AppHandler(SimpleHTTPRequestHandler):
         super().log_message(fmt, *args)
 
     def end_json(self, status: int, payload: dict, extra_headers=None):
-        body = json.dumps(payload).encode("utf-8")
+        raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        use_gzip = False
+        accept_encoding = self.headers.get("Accept-Encoding", "")
+        if len(raw) > 2048 and "gzip" in accept_encoding.lower():
+            use_gzip = True
+        body = gzip.compress(raw, compresslevel=5) if use_gzip else raw
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        if use_gzip:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Cache-Control", "no-store")
         if extra_headers:
             for k, v in extra_headers.items():
@@ -192,6 +201,10 @@ class AppHandler(SimpleHTTPRequestHandler):
             if payload is None:
                 self.end_json(HTTPStatus.OK, {"ok": True, "state": None})
             else:
+                q = parse_qs(parsed.query or "")
+                lite = str(q.get("lite", ["0"])[0]).lower() in {"1", "true", "yes"}
+                if lite:
+                    payload = make_lite_state_payload(payload)
                 self.end_json(HTTPStatus.OK, payload)
             return
 
@@ -333,6 +346,30 @@ def write_state_payload(payload: dict):
     tmp.replace(STATE_FILE)
 
 
+def make_lite_state_payload(payload: dict) -> dict:
+    state = payload.get("state")
+    if not isinstance(state, dict):
+        return payload
+    strikes = state.get("strikes")
+    if not isinstance(strikes, list):
+        return payload
+    lite_strikes = []
+    for s in strikes:
+        if not isinstance(s, dict):
+            continue
+        item = dict(s)
+        imgs = item.get("images")
+        item["imageCount"] = len(imgs) if isinstance(imgs, list) else 0
+        item["images"] = []
+        lite_strikes.append(item)
+    lite_state = dict(state)
+    lite_state["strikes"] = lite_strikes
+    out = dict(payload)
+    out["state"] = lite_state
+    out["lite"] = True
+    return out
+
+
 def hash_client_ip(ip: str) -> str:
     base = f"{IP_HASH_SALT}:{ip or ''}".encode("utf-8")
     return hashlib.sha256(base).hexdigest()
@@ -369,7 +406,7 @@ def write_viewer_email_data(payload: dict):
 def main():
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8000"))
-    server = HTTPServer((host, port), AppHandler)
+    server = ThreadingHTTPServer((host, port), AppHandler)
     print(f"Serving on http://{host}:{port}")
     print("Set ADMIN_USERNAME / ADMIN_PASSWORD env vars for production.")
     print(f"State file: {STATE_FILE}")

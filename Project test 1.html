@@ -5324,9 +5324,11 @@ function autosaveLocal(){
   }
 }
 
-async function fetchServerState(){
+async function fetchServerState(opts = {}){
   if (!canUseServerState()) return null;
-  const res = await fetch(SERVER_STATE_API, { method:"GET", credentials:"same-origin" });
+  const lite = !!opts.lite;
+  const url = lite ? `${SERVER_STATE_API}?lite=1` : SERVER_STATE_API;
+  const res = await fetch(url, { method:"GET", credentials:"same-origin" });
   if (!res.ok) throw new Error(`server state load failed (${res.status})`);
   const data = await res.json();
   if (!data || !data.state || typeof data.state !== "object") return null;
@@ -5908,13 +5910,15 @@ map.on("load", async () => {
 
     // restore server / embedded / autosave first so strikes appear immediately
     let loaded = false;
+    let loadedFromLiteState = false;
     if (canUseServerState()){
       try{
-        const serverData = await fetchServerState();
+        const serverData = await fetchServerState({ lite:true });
         if (serverData?.state && Array.isArray(serverData.state.strikes)){
           loadFromObject(serverData.state);
           autosaveLocal();
-          setStateStatus("loaded live server state");
+          loadedFromLiteState = !!serverData?.lite;
+          setStateStatus(loadedFromLiteState ? "loaded live state (fast)" : "loaded live server state");
           loaded = true;
         }
       }catch{}
@@ -5955,6 +5959,17 @@ map.on("load", async () => {
     applyFlightOpacity();
     applyLegendPathFilter();
     updatePathFromBadge();
+
+    if (loaded && loadedFromLiteState && canUseServerState()){
+      fetchServerState({ lite:false }).then((fullData) => {
+        if (!fullData?.state || !Array.isArray(fullData.state.strikes)) return;
+        const hasAnyImages = fullData.state.strikes.some(s => Array.isArray(s?.images) && s.images.length);
+        if (!hasAnyImages) return;
+        loadFromObject(fullData.state);
+        autosaveLocal();
+        setStateStatus("loaded live media state");
+      }).catch(() => {});
+    }
 
     // load decorative basemap data in background (don't block strike rendering)
     Promise.allSettled([
