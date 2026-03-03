@@ -5598,13 +5598,17 @@ document.getElementById("btnClear").addEventListener("click", () => {
 /************ SAVE/OPEN + EXPORT/IMPORT ************/
 const LOCAL_AUTOSAVE_KEY = "retroWarMap.autosave.v3";
 const SERVER_STATE_API = "/api/state";
-const SERVER_AUTOSAVE_ENABLED = false;
+const SERVER_AUTOSAVE_ENABLED = true;
+const LIVE_STATE_POLL_MS = 4000;
 var iranOrgChartEl = document.getElementById("iranOrgChart");
 let currentHtmlFileHandle = null;
 let serverAutosaveTimer = null;
 let serverAutosaveInFlight = false;
 let serverAutosaveQueued = false;
 let suppressServerAutosave = canUseServerState();
+let liveStatePollTimer = null;
+let liveStatePollInFlight = false;
+let lastServerSavedAt = "";
 
 function canUseServerState(){
   return window.location.protocol !== "file:";
@@ -5838,7 +5842,9 @@ async function saveStateToServer(stateOverride = null){
     }catch{}
     throw new Error(msg);
   }
-  return res.json();
+  const data = await res.json();
+  if (typeof data?.savedAt === "string") lastServerSavedAt = data.savedAt;
+  return data;
 }
 function scheduleServerAutosave(){
   if (!SERVER_AUTOSAVE_ENABLED) return;
@@ -5862,6 +5868,57 @@ function scheduleServerAutosave(){
       if (serverAutosaveQueued) scheduleServerAutosave();
     }
   }, 1200);
+}
+async function flushServerAutosaveNow(){
+  if (!SERVER_AUTOSAVE_ENABLED) return;
+  if (!canUseServerState()) return;
+  if (!isAdminMode()) return;
+  if (suppressServerAutosave) return;
+  if (serverAutosaveInFlight) return;
+  if (!serverAutosaveQueued) return;
+  if (serverAutosaveTimer){
+    clearTimeout(serverAutosaveTimer);
+    serverAutosaveTimer = null;
+  }
+  serverAutosaveQueued = false;
+  serverAutosaveInFlight = true;
+  try{
+    await saveStateToServer();
+    setStateStatus("autosaved locally + server");
+  }catch{
+    setStateStatus("autosaved locally (server save failed)");
+  }finally{
+    serverAutosaveInFlight = false;
+  }
+}
+function startLiveStatePolling(){
+  if (!canUseServerState()) return;
+  if (liveStatePollTimer) clearInterval(liveStatePollTimer);
+  liveStatePollTimer = setInterval(async () => {
+    if (liveStatePollInFlight) return;
+    if (isAdminMode()) return;
+    if (document.hidden) return;
+    liveStatePollInFlight = true;
+    try{
+      const lite = await fetchServerState({ lite:true });
+      if (!lite?.state || !Array.isArray(lite.state.strikes)) return;
+      const nextSavedAt = typeof lite.savedAt === "string" ? lite.savedAt : "";
+      if (!nextSavedAt || nextSavedAt === lastServerSavedAt) return;
+      lastServerSavedAt = nextSavedAt;
+      loadFromObject(lite.state);
+      autosaveLocal({ skipServer:true });
+      setStateStatus("live updates synced");
+      fetchServerState({ lite:false }).then((full) => {
+        if (!full?.state || !Array.isArray(full.state.strikes)) return;
+        loadFromObject(full.state);
+        autosaveLocal({ skipServer:true });
+      }).catch(() => {});
+    }catch{
+      // keep polling silently
+    }finally{
+      liveStatePollInFlight = false;
+    }
+  }, LIVE_STATE_POLL_MS);
 }
 
 async function publishLiveDefaultState(){
@@ -6430,6 +6487,7 @@ map.on("load", async () => {
       try{
         const serverData = await fetchServerState({ lite:true });
         if (serverData?.state && Array.isArray(serverData.state.strikes)){
+          if (typeof serverData.savedAt === "string") lastServerSavedAt = serverData.savedAt;
           loadFromObject(serverData.state);
           autosaveLocal({ skipServer:true });
           loadedFromLiteState = !!serverData?.lite;
@@ -6494,6 +6552,7 @@ map.on("load", async () => {
     if (loaded && loadedFromLiteState && canUseServerState()){
       fetchServerState({ lite:false }).then((fullData) => {
         if (!fullData?.state || !Array.isArray(fullData.state.strikes)) return;
+        if (typeof fullData.savedAt === "string") lastServerSavedAt = fullData.savedAt;
         const hasAnyImages = fullData.state.strikes.some(s => Array.isArray(s?.images) && s.images.length);
         if (!hasAnyImages) return;
         loadFromObject(fullData.state);
@@ -6503,6 +6562,7 @@ map.on("load", async () => {
     }
 
     suppressServerAutosave = false;
+    startLiveStatePolling();
 
     // load decorative basemap data in background (don't block strike rendering)
     Promise.allSettled([
@@ -6555,6 +6615,10 @@ window.addEventListener("resize", positionCamWatermark);
 window.addEventListener("load", () => {
   positionCamWatermark();
   setTimeout(positionCamWatermark, 0);
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) return;
+  flushServerAutosaveNow();
 });
 
 /************ HELPERS ************/
