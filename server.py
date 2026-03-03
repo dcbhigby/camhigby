@@ -163,6 +163,30 @@ class AppHandler(SimpleHTTPRequestHandler):
                 headers = {"Set-Cookie": self.make_viewer_gate_cookie(secrets.token_urlsafe(18), VIEWER_EMAIL_TTL_SECONDS)}
             self.end_json(HTTPStatus.OK, {"ok": True, "submitted": submitted}, extra_headers=headers)
             return
+        if path == "/api/viewer-email-export":
+            if not self.is_admin_session():
+                self.end_json(HTTPStatus.UNAUTHORIZED, {"error": "admin required"})
+                return
+            data = read_viewer_email_data()
+            entries = data.get("entries", [])
+            unique_emails = []
+            seen = set()
+            for e in entries:
+                email = str(e.get("email", "")).strip().lower()
+                if email and email not in seen:
+                    seen.add(email)
+                    unique_emails.append(email)
+            self.end_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "count": len(entries),
+                    "uniqueCount": len(unique_emails),
+                    "uniqueEmails": unique_emails,
+                    "entries": entries,
+                },
+            )
+            return
         if path == "/api/state":
             payload = read_state_payload()
             if payload is None:

@@ -1673,6 +1673,7 @@ const VIEWER_EMAIL_KEY = "retroWarMap.viewerEmail.v1";
 const VIEWER_EMAIL_LOG_KEY = "retroWarMap.viewerEmailLog.v1";
 const VIEWER_EMAIL_API = "/api/viewer-email";
 const VIEWER_EMAIL_STATUS_API = "/api/viewer-email-status";
+const VIEWER_EMAIL_EXPORT_API = "/api/viewer-email-export";
 // Optional: set this to your deployed Google Apps Script Web App URL.
 // Example: https://script.google.com/macros/s/AKfycb.../exec
 const GOOGLE_SHEETS_WEBHOOK_URL = "";
@@ -1758,8 +1759,20 @@ function appendViewerEmailLog(email, webhookStatus){
   }
   return saveViewerEmailLog(list);
 }
-function downloadViewerEmailLog(){
-  const rows = loadViewerEmailLog();
+async function fetchViewerEmailExportFromServer(){
+  if (isLocalBypassAuthMode()) return null;
+  const res = await fetch(VIEWER_EMAIL_EXPORT_API, {
+    method: "GET",
+    credentials: "same-origin"
+  });
+  let data = null;
+  try{ data = await res.json(); }catch{ data = null; }
+  if (!res.ok){
+    throw new Error(data?.error || `email export failed (${res.status})`);
+  }
+  return data;
+}
+function downloadViewerEmailLogFile(rows, uniqueEmails, sourceLabel){
   if (!rows.length){
     alert("No saved viewer emails yet.");
     return;
@@ -1767,7 +1780,12 @@ function downloadViewerEmailLog(){
   const lines = [
     "Viewer Email Log",
     `Exported: ${new Date().toISOString()}`,
+    `Source: ${sourceLabel}`,
     `Total Entries: ${rows.length}`,
+    `Unique Emails: ${uniqueEmails.length}`,
+    "",
+    "Unique Emails:",
+    ...uniqueEmails,
     "",
     "email | submitted_at | webhook_status | page",
     ...rows.map((row) => `${row.email || ""} | ${row.submittedAt || ""} | ${row.webhookStatus || ""} | ${row.page || ""}`)
@@ -1781,6 +1799,34 @@ function downloadViewerEmailLog(){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+async function downloadViewerEmailLog(){
+  try{
+    const data = await fetchViewerEmailExportFromServer();
+    if (data && Array.isArray(data.entries)){
+      const rows = data.entries.map((e) => ({
+        email: e.email || "",
+        submittedAt: e.submittedAt || "",
+        webhookStatus: e.webhookStatus || "server",
+        page: e.page || ""
+      }));
+      const uniqueEmails = Array.isArray(data.uniqueEmails) ? data.uniqueEmails : [];
+      downloadViewerEmailLogFile(rows, uniqueEmails, "server");
+      return;
+    }
+  }catch{
+    // fallback below
+  }
+  const rows = loadViewerEmailLog();
+  const unique = [];
+  const seen = new Set();
+  for (const row of rows){
+    const email = String(row.email || "").trim().toLowerCase();
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    unique.push(email);
+  }
+  downloadViewerEmailLogFile(rows, unique, "local browser");
 }
 async function submitViewerEmailToSheet(email){
   const endpoint = String(GOOGLE_SHEETS_WEBHOOK_URL || "").trim();
@@ -2140,12 +2186,12 @@ if (btnViewerOptions){
   });
 }
 if (btnExportViewerEmails){
-  btnExportViewerEmails.addEventListener("click", () => {
+  btnExportViewerEmails.addEventListener("click", async () => {
     if (!isAdminMode()){
       setStateStatus("viewer mode: email log export disabled");
       return;
     }
-    downloadViewerEmailLog();
+    await downloadViewerEmailLog();
     setStateStatus("viewer email log exported");
   });
 }
