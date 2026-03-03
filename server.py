@@ -6,6 +6,7 @@ import time
 import hashlib
 import re
 import gzip
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -18,7 +19,7 @@ INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
 DEFAULT_STATE_FILE = Path("/var/data/live_state.json") if Path("/var/data").exists() else (ROOT_DIR / "live_state.json")
 STATE_FILE = Path(os.getenv("STATE_FILE", str(DEFAULT_STATE_FILE)))
 STATE_BACKUP_FILE = Path(os.getenv("STATE_BACKUP_FILE", str(STATE_FILE.with_suffix(".backup.json"))))
-MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(256 * 1024 * 1024)))
+MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", "0"))
 DEFAULT_VIEWER_EMAIL_FILE = Path("/var/data/viewer_email_gate.json") if Path("/var/data").exists() else (ROOT_DIR / "viewer_email_gate.json")
 VIEWER_EMAIL_FILE = Path(os.getenv("VIEWER_EMAIL_FILE", str(DEFAULT_VIEWER_EMAIL_FILE)))
 VIEWER_EMAIL_COOKIE = "viewer_gate_pass"
@@ -300,7 +301,7 @@ class AppHandler(SimpleHTTPRequestHandler):
                     },
                 )
                 return
-            saved_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            saved_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
             payload = {"ok": True, "savedAt": saved_at, "state": state}
             try:
                 write_state_payload(payload)

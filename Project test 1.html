@@ -2300,7 +2300,7 @@ function applyAccessMode(){
 
   if (btnAdminLogin) btnAdminLogin.style.display = admin ? "none" : "";
   if (btnAdminLogout) btnAdminLogout.style.display = admin ? "" : "none";
-  if (btnPublishLive) btnPublishLive.style.display = admin ? "" : "none";
+  if (btnPublishLive) btnPublishLive.style.display = "none";
   if (btnExportViewerEmails) btnExportViewerEmails.style.display = admin ? "" : "none";
   if (btnViewerOptions) btnViewerOptions.style.display = admin ? "none" : "";
   if (statsBtn){
@@ -5694,7 +5694,7 @@ document.getElementById("btnClear").addEventListener("click", () => {
 const LOCAL_AUTOSAVE_KEY = "retroWarMap.autosave.v3";
 const SERVER_STATE_API = "/api/state";
 const SERVER_AUTOSAVE_ENABLED = true;
-const LIVE_STATE_POLL_MS = 4000;
+const LIVE_STATE_POLL_MS = 1000;
 var iranOrgChartEl = document.getElementById("iranOrgChart");
 let currentHtmlFileHandle = null;
 let serverAutosaveTimer = null;
@@ -5962,7 +5962,7 @@ function scheduleServerAutosave(){
       serverAutosaveInFlight = false;
       if (serverAutosaveQueued) scheduleServerAutosave();
     }
-  }, 1200);
+  }, 450);
 }
 async function flushServerAutosaveNow(){
   if (!SERVER_AUTOSAVE_ENABLED) return;
@@ -6000,12 +6000,12 @@ function startLiveStatePolling(){
       const nextSavedAt = typeof lite.savedAt === "string" ? lite.savedAt : "";
       if (!nextSavedAt || nextSavedAt === lastServerSavedAt) return;
       lastServerSavedAt = nextSavedAt;
-      loadFromObject(lite.state);
+      loadFromObject(lite.state, { preserveMapView: true });
       autosaveLocal({ skipServer:true });
       setStateStatus("live updates synced");
       fetchServerState({ lite:false }).then((full) => {
         if (!full?.state || !Array.isArray(full.state.strikes)) return;
-        loadFromObject(full.state);
+        loadFromObject(full.state, { preserveMapView: true });
         autosaveLocal({ skipServer:true });
       }).catch(() => {});
     }catch{
@@ -6040,7 +6040,8 @@ async function publishLiveDefaultState(){
   }
 }
 
-function loadFromObject(obj){
+function loadFromObject(obj, options = {}){
+  const preserveMapView = !!options.preserveMapView;
   selectedStrikeIds.clear();
   barChartsState = sanitizeBarChartsState(obj?.barCharts, obj?.barChart);
   graph3State = sanitizeGraph3State(obj?.graph3);
@@ -6086,7 +6087,7 @@ function loadFromObject(obj){
 
   const c = obj?.map?.center;
   const z = obj?.map?.zoom;
-  if (Array.isArray(c) && c.length === 2 && Number.isFinite(+c[0]) && Number.isFinite(+c[1]) && Number.isFinite(+z)){
+  if (!preserveMapView && Array.isArray(c) && c.length === 2 && Number.isFinite(+c[0]) && Number.isFinite(+c[1]) && Number.isFinite(+z)){
     map.jumpTo({ center: [ +c[0], +c[1] ], zoom: +z });
   }
   refreshArrowSources();
