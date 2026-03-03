@@ -5298,6 +5298,7 @@ let currentHtmlFileHandle = null;
 let serverAutosaveTimer = null;
 let serverAutosaveInFlight = false;
 let serverAutosaveQueued = false;
+let suppressServerAutosave = canUseServerState();
 
 function canUseServerState(){
   return window.location.protocol !== "file:";
@@ -5314,11 +5315,12 @@ function serializeStateObject(){
     graph3: deepClone(graph3State)
   };
 }
-function autosaveLocal(){
+function autosaveLocal(options = {}){
+  const skipServer = !!options.skipServer;
   try{
     localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(serializeStateObject()));
     setStateStatus("autosaved locally");
-    scheduleServerAutosave();
+    if (!skipServer) scheduleServerAutosave();
   }catch{
     setStateStatus("local autosave failed");
   }
@@ -5357,6 +5359,7 @@ async function saveStateToServer(stateOverride = null){
 function scheduleServerAutosave(){
   if (!canUseServerState()) return;
   if (!isAdminMode()) return;
+  if (suppressServerAutosave) return;
   serverAutosaveQueued = true;
   if (serverAutosaveTimer) clearTimeout(serverAutosaveTimer);
   serverAutosaveTimer = setTimeout(async () => {
@@ -5911,29 +5914,46 @@ map.on("load", async () => {
     // restore server / embedded / autosave first so strikes appear immediately
     let loaded = false;
     let loadedFromLiteState = false;
+    let liveStateFetchFailed = false;
     if (canUseServerState()){
       try{
         const serverData = await fetchServerState({ lite:true });
         if (serverData?.state && Array.isArray(serverData.state.strikes)){
           loadFromObject(serverData.state);
-          autosaveLocal();
+          autosaveLocal({ skipServer:true });
           loadedFromLiteState = !!serverData?.lite;
           setStateStatus(loadedFromLiteState ? "loaded live state (fast)" : "loaded live server state");
           loaded = true;
         }
-      }catch{}
+      }catch{
+        liveStateFetchFailed = true;
+      }
     }
     try{
       if (!loaded){
-        const tag = document.getElementById("embeddedState");
-        const raw = (tag?.textContent || "").trim();
-        if (raw){
-          const obj = JSON.parse(raw);
-          if (obj && Array.isArray(obj.strikes)){
-            loadFromObject(obj);
-            autosaveLocal();
-            setStateStatus("loaded embedded state");
-            loaded = true;
+        if (canUseServerState()){
+          const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY);
+          if (saved){
+            const obj = JSON.parse(saved);
+            if (obj && Array.isArray(obj.strikes)){
+              loadFromObject(obj);
+              autosaveLocal({ skipServer:true });
+              setStateStatus(liveStateFetchFailed ? "loaded cached state (live fetch failed)" : "loaded cached state");
+              loaded = true;
+            }
+          }
+        }
+        if (!loaded){
+          const tag = document.getElementById("embeddedState");
+          const raw = (tag?.textContent || "").trim();
+          if (raw){
+            const obj = JSON.parse(raw);
+            if (obj && Array.isArray(obj.strikes)){
+              loadFromObject(obj);
+              autosaveLocal({ skipServer:true });
+              setStateStatus("loaded embedded state");
+              loaded = true;
+            }
           }
         }
       }
@@ -5966,10 +5986,12 @@ map.on("load", async () => {
         const hasAnyImages = fullData.state.strikes.some(s => Array.isArray(s?.images) && s.images.length);
         if (!hasAnyImages) return;
         loadFromObject(fullData.state);
-        autosaveLocal();
+        autosaveLocal({ skipServer:true });
         setStateStatus("loaded live media state");
       }).catch(() => {});
     }
+
+    suppressServerAutosave = false;
 
     // load decorative basemap data in background (don't block strike rendering)
     Promise.allSettled([
