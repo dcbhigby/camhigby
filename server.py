@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 ROOT_DIR = Path(__file__).resolve().parent
 INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
 STATE_FILE = Path(os.getenv("STATE_FILE", str(ROOT_DIR / "live_state.json")))
-MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(8 * 1024 * 1024)))
+MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(64 * 1024 * 1024)))
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
 # Set this in your shell for production:

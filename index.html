@@ -5207,10 +5207,10 @@ async function fetchServerState(){
   if (!data || !data.state || typeof data.state !== "object") return null;
   return data;
 }
-async function saveStateToServer(){
+async function saveStateToServer(stateOverride = null){
   if (!canUseServerState()) return { ok:false, skipped:true };
   if (!isAdminMode()) return { ok:false, skipped:true };
-  const state = serializeStateObject();
+  const state = (stateOverride && typeof stateOverride === "object") ? stateOverride : serializeStateObject();
   const res = await fetch(SERVER_STATE_API, {
     method:"POST",
     credentials:"same-origin",
@@ -5431,20 +5431,15 @@ document.getElementById("btnImport").addEventListener("click", async () => {
       const prevState = serializeStateObject();
       const txt = await file.text();
       const obj = JSON.parse(txt);
+      if (canUseServerState() && isAdminMode()){
+        // Hosted mode: import must publish to server so refresh/users see it.
+        await saveStateToServer(obj);
+      }
       loadFromObject(obj);
       autosaveLocal();
       currentHtmlFileHandle = null;
       pushUndo({ type:"import_state", prevState });
-      if (canUseServerState() && isAdminMode()){
-        try{
-          await saveStateToServer();
-          setStateStatus("imported json + saved live");
-        }catch{
-          setStateStatus("imported json (live save failed)");
-        }
-      } else {
-        setStateStatus("imported json");
-      }
+      setStateStatus(canUseServerState() ? "imported json + published live default" : "imported json");
     }catch(err){
       alert("Import failed: " + (err?.message || String(err)));
       setStateStatus("import failed");
@@ -5842,7 +5837,7 @@ map.on("load", async () => {
       }
     }catch{}
 
-    if (!loaded){
+    if (!loaded && !canUseServerState()){
       try{
         const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY);
         if (saved){
@@ -5855,6 +5850,8 @@ map.on("load", async () => {
       }catch{
         setStateStatus("ready");
       }
+    } else if (!loaded) {
+      setStateStatus("ready");
     }
 
     applyFlightOpacity();
