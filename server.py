@@ -17,6 +17,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
 DEFAULT_STATE_FILE = Path("/var/data/live_state.json") if Path("/var/data").exists() else (ROOT_DIR / "live_state.json")
 STATE_FILE = Path(os.getenv("STATE_FILE", str(DEFAULT_STATE_FILE)))
+STATE_BACKUP_FILE = Path(os.getenv("STATE_BACKUP_FILE", str(STATE_FILE.with_suffix(".backup.json"))))
 MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(256 * 1024 * 1024)))
 DEFAULT_VIEWER_EMAIL_FILE = Path("/var/data/viewer_email_gate.json") if Path("/var/data").exists() else (ROOT_DIR / "viewer_email_gate.json")
 VIEWER_EMAIL_FILE = Path(os.getenv("VIEWER_EMAIL_FILE", str(DEFAULT_VIEWER_EMAIL_FILE)))
@@ -269,6 +270,21 @@ class AppHandler(SimpleHTTPRequestHandler):
             if not isinstance(state, dict):
                 self.end_json(HTTPStatus.BAD_REQUEST, {"error": "state must be an object"})
                 return
+            allow_empty = bool(body.get("allowEmpty", False))
+            incoming_strikes = state.get("strikes")
+            existing = read_state_payload()
+            existing_count = len(existing.get("state", {}).get("strikes", [])) if existing and isinstance(existing.get("state"), dict) else 0
+            incoming_count = len(incoming_strikes) if isinstance(incoming_strikes, list) else 0
+            # Safety lock: avoid accidental wipe of live markers.
+            if existing_count > 0 and incoming_count == 0 and not allow_empty:
+                self.end_json(
+                    HTTPStatus.CONFLICT,
+                    {
+                        "error": "refusing to overwrite live state with 0 strikes; pass allowEmpty=true to force",
+                        "existingStrikeCount": existing_count,
+                    },
+                )
+                return
             saved_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             payload = {"ok": True, "savedAt": saved_at, "state": state}
             try:
@@ -319,31 +335,37 @@ class AppHandler(SimpleHTTPRequestHandler):
 
 def read_state_payload():
     try:
-        if not STATE_FILE.exists():
-            return None
-        raw = STATE_FILE.read_text(encoding="utf-8")
-        if not raw.strip():
-            return None
-        data = json.loads(raw)
-        if not isinstance(data, dict):
-            return None
-        state = data.get("state")
-        if not isinstance(state, dict):
-            return None
-        return {
-            "ok": True,
-            "savedAt": data.get("savedAt"),
-            "state": state,
-        }
+        for p in (STATE_FILE, STATE_BACKUP_FILE):
+            if not p.exists():
+                continue
+            raw = p.read_text(encoding="utf-8")
+            if not raw.strip():
+                continue
+            data = json.loads(raw)
+            if not isinstance(data, dict):
+                continue
+            state = data.get("state")
+            if not isinstance(state, dict):
+                continue
+            return {
+                "ok": True,
+                "savedAt": data.get("savedAt"),
+                "state": state,
+            }
+        return None
     except Exception:
         return None
 
 
 def write_state_payload(payload: dict):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_BACKUP_FILE.parent.mkdir(parents=True, exist_ok=True)
     tmp = STATE_FILE.with_suffix(STATE_FILE.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
     tmp.replace(STATE_FILE)
+    bak_tmp = STATE_BACKUP_FILE.with_suffix(STATE_BACKUP_FILE.suffix + ".tmp")
+    bak_tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+    bak_tmp.replace(STATE_BACKUP_FILE)
 
 
 def make_lite_state_payload(payload: dict) -> dict:
