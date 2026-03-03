@@ -5168,7 +5168,15 @@ document.getElementById("btnClear").addEventListener("click", () => {
 
 /************ SAVE/OPEN + EXPORT/IMPORT ************/
 const LOCAL_AUTOSAVE_KEY = "retroWarMap.autosave.v3";
+const SERVER_STATE_API = "/api/state";
 let currentHtmlFileHandle = null;
+let serverAutosaveTimer = null;
+let serverAutosaveInFlight = false;
+let serverAutosaveQueued = false;
+
+function canUseServerState(){
+  return window.location.protocol !== "file:";
+}
 
 function serializeStateObject(){
   return {
@@ -5185,9 +5193,60 @@ function autosaveLocal(){
   try{
     localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(serializeStateObject()));
     setStateStatus("autosaved locally");
+    scheduleServerAutosave();
   }catch{
     setStateStatus("local autosave failed");
   }
+}
+
+async function fetchServerState(){
+  if (!canUseServerState()) return null;
+  const res = await fetch(SERVER_STATE_API, { method:"GET", credentials:"same-origin" });
+  if (!res.ok) throw new Error(`server state load failed (${res.status})`);
+  const data = await res.json();
+  if (!data || !data.state || typeof data.state !== "object") return null;
+  return data;
+}
+async function saveStateToServer(){
+  if (!canUseServerState()) return { ok:false, skipped:true };
+  if (!isAdminMode()) return { ok:false, skipped:true };
+  const state = serializeStateObject();
+  const res = await fetch(SERVER_STATE_API, {
+    method:"POST",
+    credentials:"same-origin",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ state })
+  });
+  if (!res.ok){
+    let msg = `server state save failed (${res.status})`;
+    try{
+      const data = await res.json();
+      if (data?.error) msg = data.error;
+    }catch{}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+function scheduleServerAutosave(){
+  if (!canUseServerState()) return;
+  if (!isAdminMode()) return;
+  serverAutosaveQueued = true;
+  if (serverAutosaveTimer) clearTimeout(serverAutosaveTimer);
+  serverAutosaveTimer = setTimeout(async () => {
+    if (serverAutosaveInFlight) return;
+    if (!serverAutosaveQueued) return;
+    serverAutosaveQueued = false;
+    serverAutosaveInFlight = true;
+    try{
+      await saveStateToServer();
+      setStateStatus("autosaved locally + server");
+    }catch{
+      setStateStatus("autosaved locally (server save failed)");
+    }finally{
+      serverAutosaveInFlight = false;
+      if (serverAutosaveQueued) scheduleServerAutosave();
+    }
+  }, 1200);
 }
 
 function loadFromObject(obj){
@@ -5278,6 +5337,20 @@ async function saveAsHtml(){
   }
 }
 async function saveHtml(){
+  if (canUseServerState()){
+    if (!isAdminMode()){
+      setStateStatus("viewer mode: save disabled");
+      return;
+    }
+    try{
+      await saveStateToServer();
+      setStateStatus("saved to live server state");
+    }catch(err){
+      alert("Live save failed: " + (err?.message || String(err)));
+      setStateStatus("live save failed");
+    }
+    return;
+  }
   if (!("showSaveFilePicker" in window)){
     alert("Save (HTML) needs Chrome/Edge. Safari: use Export/Import JSON.");
     return;
@@ -5362,7 +5435,16 @@ document.getElementById("btnImport").addEventListener("click", async () => {
       autosaveLocal();
       currentHtmlFileHandle = null;
       pushUndo({ type:"import_state", prevState });
-      setStateStatus("imported json");
+      if (canUseServerState() && isAdminMode()){
+        try{
+          await saveStateToServer();
+          setStateStatus("imported json + saved live");
+        }catch{
+          setStateStatus("imported json (live save failed)");
+        }
+      } else {
+        setStateStatus("imported json");
+      }
     }catch(err){
       alert("Import failed: " + (err?.message || String(err)));
       setStateStatus("import failed");
@@ -5731,18 +5813,31 @@ map.on("load", async () => {
       }
     });
 
-    // restore embedded / autosave
+    // restore server / embedded / autosave
     let loaded = false;
-    try{
-      const tag = document.getElementById("embeddedState");
-      const raw = (tag?.textContent || "").trim();
-      if (raw){
-        const obj = JSON.parse(raw);
-        if (obj && Array.isArray(obj.strikes)){
-          loadFromObject(obj);
+    if (canUseServerState()){
+      try{
+        const serverData = await fetchServerState();
+        if (serverData?.state && Array.isArray(serverData.state.strikes)){
+          loadFromObject(serverData.state);
           autosaveLocal();
-          setStateStatus("loaded embedded state");
+          setStateStatus("loaded live server state");
           loaded = true;
+        }
+      }catch{}
+    }
+    try{
+      if (!loaded){
+        const tag = document.getElementById("embeddedState");
+        const raw = (tag?.textContent || "").trim();
+        if (raw){
+          const obj = JSON.parse(raw);
+          if (obj && Array.isArray(obj.strikes)){
+            loadFromObject(obj);
+            autosaveLocal();
+            setStateStatus("loaded embedded state");
+            loaded = true;
+          }
         }
       }
     }catch{}

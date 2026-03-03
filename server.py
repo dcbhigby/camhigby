@@ -12,6 +12,8 @@ from urllib.parse import urlparse
 
 ROOT_DIR = Path(__file__).resolve().parent
 INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
+STATE_FILE = Path(os.getenv("STATE_FILE", str(ROOT_DIR / "live_state.json")))
+MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(8 * 1024 * 1024)))
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
 # Set this in your shell for production:
@@ -111,6 +113,13 @@ class AppHandler(SimpleHTTPRequestHandler):
         if path == "/api/me":
             self.end_json(HTTPStatus.OK, {"admin": self.is_admin_session()})
             return
+        if path == "/api/state":
+            payload = read_state_payload()
+            if payload is None:
+                self.end_json(HTTPStatus.OK, {"ok": True, "state": None})
+            else:
+                self.end_json(HTTPStatus.OK, payload)
+            return
 
         if path in ("/", ""):
             self.path = "/" + INDEX_FILE
@@ -149,8 +158,66 @@ class AppHandler(SimpleHTTPRequestHandler):
                 extra_headers={"Set-Cookie": clear_cookie},
             )
             return
+        if path == "/api/state":
+            if not self.is_admin_session():
+                self.end_json(HTTPStatus.UNAUTHORIZED, {"error": "admin required"})
+                return
+            raw_len = self.headers.get("Content-Length", "0")
+            try:
+                content_length = int(raw_len)
+            except ValueError:
+                content_length = 0
+            if content_length <= 0:
+                self.end_json(HTTPStatus.BAD_REQUEST, {"error": "missing request body"})
+                return
+            if content_length > MAX_STATE_BYTES:
+                self.end_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "state too large"})
+                return
+            body = self.read_json_body()
+            state = body.get("state")
+            if not isinstance(state, dict):
+                self.end_json(HTTPStatus.BAD_REQUEST, {"error": "state must be an object"})
+                return
+            saved_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            payload = {"ok": True, "savedAt": saved_at, "state": state}
+            try:
+                write_state_payload(payload)
+            except Exception as exc:
+                self.end_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"failed to save state: {exc}"})
+                return
+            self.end_json(HTTPStatus.OK, {"ok": True, "savedAt": saved_at})
+            return
 
         self.end_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+
+
+def read_state_payload():
+    try:
+        if not STATE_FILE.exists():
+            return None
+        raw = STATE_FILE.read_text(encoding="utf-8")
+        if not raw.strip():
+            return None
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return None
+        state = data.get("state")
+        if not isinstance(state, dict):
+            return None
+        return {
+            "ok": True,
+            "savedAt": data.get("savedAt"),
+            "state": state,
+        }
+    except Exception:
+        return None
+
+
+def write_state_payload(payload: dict):
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = STATE_FILE.with_suffix(STATE_FILE.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+    tmp.replace(STATE_FILE)
 
 
 def main():
