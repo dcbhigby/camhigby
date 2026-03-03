@@ -5,6 +5,10 @@ services:
     autoDeploy: true
     buildCommand: "echo 'No build step'"
     startCommand: "python3 server.py"
+    disk:
+      name: map-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: HOST
         value: 0.0.0.0

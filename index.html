@@ -5484,13 +5484,50 @@ document.getElementById("btnDeleteStrike").addEventListener("click", () => {
 });
 
 /************ IMAGES ************/
-function fileToDataURL(file){
+const MAX_UPLOAD_IMAGE_DIM = 1400;
+const JPEG_OUTPUT_QUALITY = 0.78;
+const SKIP_REENCODE_MAX_BYTES = 320 * 1024;
+function readFileAsDataURL(file){
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result || ""));
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+function loadImageFromSrc(src){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+async function fileToDataURL(file){
+  const original = await readFileAsDataURL(file);
+  if (!original.startsWith("data:image/")) return "";
+  if (String(file?.type || "").includes("svg")) return original;
+  if ((file?.size || 0) <= SKIP_REENCODE_MAX_BYTES) return original;
+  try{
+    const img = await loadImageFromSrc(original);
+    const srcW = img.naturalWidth || img.width || 1;
+    const srcH = img.naturalHeight || img.height || 1;
+    const maxSide = Math.max(srcW, srcH);
+    const scale = maxSide > MAX_UPLOAD_IMAGE_DIM ? (MAX_UPLOAD_IMAGE_DIM / maxSide) : 1;
+    const outW = Math.max(1, Math.round(srcW * scale));
+    const outH = Math.max(1, Math.round(srcH * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return original;
+    ctx.drawImage(img, 0, 0, outW, outH);
+    const compressed = canvas.toDataURL("image/jpeg", JPEG_OUTPUT_QUALITY);
+    if (!compressed.startsWith("data:image/")) return original;
+    return (compressed.length < original.length) ? compressed : original;
+  }catch{
+    return original;
+  }
 }
 async function appendImagesToActiveStrike(fileList){
   const s = strikes.find(x => x.id === activeStrikeId);
