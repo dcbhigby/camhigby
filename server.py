@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 
 ROOT_DIR = Path(__file__).resolve().parent
-INDEX_FILE = "Project test 1.html"
+INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
 # Set this in your shell for production:
@@ -112,7 +112,7 @@ class AppHandler(SimpleHTTPRequestHandler):
             self.end_json(HTTPStatus.OK, {"admin": self.is_admin_session()})
             return
 
-        if path == "/":
+        if path in ("/", ""):
             self.path = "/" + INDEX_FILE
         return super().do_GET()
 
@@ -164,4 +164,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
