@@ -21,4 +21,4 @@ services:
       - key: SESSION_TTL_SECONDS
         value: "43200"
       - key: MAX_STATE_BYTES
-        value: "100663296"
+        value: "268435456"
