@@ -5746,33 +5746,6 @@ map.on("load", async () => {
     map.addSource("grid", { type:"geojson", data: makeLatLngGridGeoJSON(10) });
     map.addLayer({ id:"grid-line", type:"line", source:"grid", paint:{ "line-color":"rgba(0,255,106,0.12)", "line-width":1 } });
 
-    const [countries, states, cities] = await Promise.all([
-      fetchJson(URL_COUNTRIES),
-      fetchJson(URL_STATES),
-      fetchJson(URL_CITIES)
-    ]);
-
-    map.addSource("countries", { type:"geojson", data:countries });
-    map.addLayer({ id:"countries-fill", type:"fill", source:"countries", paint:{ "fill-color":"rgba(0,255,106,0.14)" } });
-    map.addLayer({ id:"countries-line", type:"line", source:"countries", paint:{ "line-color":"rgba(0,255,106,0.40)", "line-width":1.2 }});
-
-    map.addSource("states", { type:"geojson", data:states });
-    map.addLayer({ id:"states-line", type:"line", source:"states", minzoom:2.3, paint:{ "line-color":"rgba(0,255,106,0.22)", "line-width":1 }});
-
-    map.addSource("cities_all", { type:"geojson", data:cities });
-    map.addLayer({
-      id:"cities-dot",
-      type:"circle",
-      source:"cities_all",
-      minzoom: 3.5,
-      paint:{
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 3.5, 2, 9, 4],
-        "circle-color":"rgba(0,255,106,0.75)",
-        "circle-stroke-color":"rgba(0,0,0,0.75)",
-        "circle-stroke-width":1
-      }
-    });
-
     // flight path sources + layers
     map.addSource("flightPaths", { type:"geojson", data:{ type:"FeatureCollection", features:[] } });
     map.addSource("flightArrowHeads", { type:"geojson", data:{ type:"FeatureCollection", features:[] } });
@@ -5821,7 +5794,7 @@ map.on("load", async () => {
       }
     });
 
-    // restore server / embedded / autosave
+    // restore server / embedded / autosave first so strikes appear immediately
     let loaded = false;
     if (canUseServerState()){
       try{
@@ -5870,6 +5843,47 @@ map.on("load", async () => {
     applyFlightOpacity();
     applyLegendPathFilter();
     updatePathFromBadge();
+
+    // load decorative basemap data in background (don't block strike rendering)
+    Promise.allSettled([
+      fetchJson(URL_COUNTRIES),
+      fetchJson(URL_STATES),
+      fetchJson(URL_CITIES)
+    ]).then((results) => {
+      const countries = results[0]?.status === "fulfilled" ? results[0].value : null;
+      const states = results[1]?.status === "fulfilled" ? results[1].value : null;
+      const cities = results[2]?.status === "fulfilled" ? results[2].value : null;
+
+      if (countries && !map.getSource("countries")){
+        map.addSource("countries", { type:"geojson", data:countries });
+        map.addLayer({ id:"countries-fill", type:"fill", source:"countries", paint:{ "fill-color":"rgba(0,255,106,0.14)" } });
+        map.addLayer({ id:"countries-line", type:"line", source:"countries", paint:{ "line-color":"rgba(0,255,106,0.40)", "line-width":1.2 }});
+      }
+      if (states && !map.getSource("states")){
+        map.addSource("states", { type:"geojson", data:states });
+        map.addLayer({ id:"states-line", type:"line", source:"states", minzoom:2.3, paint:{ "line-color":"rgba(0,255,106,0.22)", "line-width":1 }});
+      }
+      if (cities && !map.getSource("cities_all")){
+        map.addSource("cities_all", { type:"geojson", data:cities });
+        map.addLayer({
+          id:"cities-dot",
+          type:"circle",
+          source:"cities_all",
+          minzoom: 3.5,
+          paint:{
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 3.5, 2, 9, 4],
+            "circle-color":"rgba(0,255,106,0.75)",
+            "circle-stroke-color":"rgba(0,0,0,0.75)",
+            "circle-stroke-width":1
+          }
+        });
+      }
+      if (!countries || !states || !cities){
+        setStateStatus("ready (some map layers unavailable)");
+      }
+    }).catch(() => {
+      setStateStatus("ready (basemap layer load failed)");
+    });
   }catch(err){
     setStateStatus("ERROR loading map data");
     console.error(err);

@@ -12,7 +12,8 @@ from urllib.parse import urlparse
 
 ROOT_DIR = Path(__file__).resolve().parent
 INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
-STATE_FILE = Path(os.getenv("STATE_FILE", str(ROOT_DIR / "live_state.json")))
+DEFAULT_STATE_FILE = Path("/var/data/live_state.json") if Path("/var/data").exists() else (ROOT_DIR / "live_state.json")
+STATE_FILE = Path(os.getenv("STATE_FILE", str(DEFAULT_STATE_FILE)))
 MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", str(256 * 1024 * 1024)))
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
@@ -230,6 +231,7 @@ def main():
     server = HTTPServer((host, port), AppHandler)
     print(f"Serving on http://{host}:{port}")
     print("Set ADMIN_USERNAME / ADMIN_PASSWORD env vars for production.")
+    print(f"State file: {STATE_FILE}")
     server.serve_forever()
 
 
