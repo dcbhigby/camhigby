@@ -390,6 +390,223 @@
       display:none;
       gap:6px;
     }
+    .statsTimelineStage{
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(0,10,5,.72), rgba(0,5,2,.82));
+      box-shadow: inset 0 0 24px rgba(0,255,106,.07);
+      border-radius:12px;
+      padding:12px;
+      display:grid;
+      gap:10px;
+      margin-top:10px;
+    }
+    .statsTimelineHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .statsTimelineHeadActions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-left:auto;
+    }
+    .statsTimelineSearch{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      min-width:min(520px, 100%);
+      flex-wrap:wrap;
+      position:relative;
+    }
+    .statsTimelineSearch input{
+      min-width:220px;
+      flex:1 1 220px;
+    }
+    .statsTimelineSearchMatches{
+      width:100%;
+      display:none;
+      border:1px solid rgba(0,255,106,.22);
+      border-radius:10px;
+      background: rgba(0,0,0,.72);
+      box-shadow: 0 0 14px rgba(0,255,106,.12);
+      max-height:220px;
+      overflow:auto;
+    }
+    .statsTimelineSearchMatches.open{
+      display:grid;
+      gap:0;
+    }
+    .statsTimelineSearchMatch{
+      border:none;
+      border-top:1px solid rgba(220,255,235,.10);
+      background:transparent;
+      color:var(--ink);
+      text-align:left;
+      padding:8px 10px;
+      font-size:11px;
+      cursor:pointer;
+      display:grid;
+      gap:2px;
+    }
+    .statsTimelineSearchMatch:first-child{
+      border-top:none;
+    }
+    .statsTimelineSearchMatch:hover{
+      background: rgba(0,255,106,.12);
+    }
+    .statsTimelineSearchMatchDate{
+      font-size:10px;
+      opacity:.8;
+      letter-spacing:.04em;
+    }
+    .statsTimelineSearchMatchLabel{
+      font-size:11px;
+      font-weight:700;
+      line-height:1.2;
+    }
+    .statsTimelineTitle{
+      font-size:16px;
+      font-weight:800;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    .statsTimelineViewport{
+      position:relative;
+      min-height:110px;
+      overflow-x:auto;
+      overflow-y:hidden;
+      padding:4px 0 6px;
+    }
+    .statsTimelineRail{
+      position:relative;
+      min-width:820px;
+      height:96px;
+    }
+    .statsTimelineRail::before{
+      content:"";
+      position:absolute;
+      left:10px;
+      right:10px;
+      top:56px;
+      height:2px;
+      background: rgba(220,255,235,.5);
+      box-shadow: 0 0 10px rgba(0,255,106,.12);
+    }
+    .statsTimeTick{
+      position:absolute;
+      top:47px;
+      width:2px;
+      height:18px;
+      background: rgba(220,255,235,.8);
+      transform:translateX(-50%);
+      pointer-events:none;
+    }
+    .statsTimeDot{
+      position:absolute;
+      top:51px;
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      background: rgba(220,255,235,.95);
+      box-shadow: 0 0 0 2px rgba(0,255,106,.2), 0 0 10px rgba(0,255,106,.22);
+      transform:translateX(-50%);
+      pointer-events:none;
+    }
+    .statsTimeCard{
+      position:absolute;
+      top:auto;
+      bottom:43px;
+      transform:translateX(-50%);
+      min-width:120px;
+      max-width:180px;
+      height:52px;
+      border:1px solid transparent;
+      border-radius:8px;
+      background:
+        linear-gradient(rgba(0,0,0,.32), rgba(0,0,0,.32)) padding-box,
+        var(--timeline-card-border, linear-gradient(90deg, rgba(0,255,106,.22), rgba(0,255,106,.22))) border-box;
+      padding:6px 7px;
+      display:grid;
+      gap:2px;
+      box-sizing:border-box;
+      overflow:hidden;
+      box-shadow: 0 0 12px rgba(0,255,106,.08);
+      z-index:3;
+      transition: left .14s ease;
+    }
+    .statsTimeCard.draggable{
+      cursor:grab;
+    }
+    .statsTimeCard.dragging{
+      cursor:grabbing;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.55) inset, 0 0 14px rgba(255,255,255,.25);
+    }
+    .statsTimeCard.linked{
+      cursor:pointer;
+    }
+    .statsTimeCard.linked:hover{
+      box-shadow: 0 0 16px rgba(0,255,106,.18), 0 0 0 1px rgba(220,255,235,.55) inset;
+      transform: translateX(-50%) translateY(-1px);
+    }
+    .statsTimeCard.searchHit{
+      box-shadow: 0 0 0 2px rgba(255,255,255,.45), 0 0 16px rgba(255,255,255,.2), 0 0 0 1px rgba(255,255,255,.95) inset;
+    }
+    .statsTimeDate{
+      font-size:10px;
+      opacity:.78;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .statsTimeLabel{
+      font-size:11px;
+      font-weight:700;
+      line-height:1.2;
+      display:-webkit-box;
+      -webkit-box-orient:vertical;
+      -webkit-line-clamp:2;
+      overflow:hidden;
+    }
+    .statsDayDivider{
+      position:absolute;
+      top:38px;
+      bottom:0;
+      width:1px;
+      background: rgba(220,255,235,.28);
+      transform:translateX(-50%);
+      pointer-events:none;
+      z-index:4;
+    }
+    .statsDayLabel{
+      position:absolute;
+      top:64px;
+      transform:translateX(-50%);
+      font-size:9px;
+      letter-spacing:.06em;
+      opacity:.78;
+      white-space:nowrap;
+      pointer-events:none;
+      z-index:5;
+    }
+    .statsTimelineRows{
+      border:1px solid rgba(0,255,106,.18);
+      border-radius:10px;
+      background: rgba(0,0,0,.22);
+      padding:8px;
+      display:grid;
+      gap:8px;
+      max-height:180px;
+      overflow:auto;
+    }
+    .statsTimelineRow{
+      display:grid;
+      grid-template-columns: minmax(120px, .8fr) minmax(140px, 1.6fr) minmax(110px, 1fr) auto;
+      gap:8px;
+      align-items:center;
+    }
     .orgChartWrap{
       border:1px solid rgba(0,255,106,.2);
       background: linear-gradient(180deg, rgba(0,20,10,.5), rgba(0,0,0,.35));
@@ -1067,6 +1284,13 @@
       gap:8px;
     }
     .groupPopup .head{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+    .groupTimelineRow{
+      display:grid;
+      grid-template-columns: minmax(130px,.7fr) minmax(150px,1.3fr) auto auto;
+      gap:8px;
+      align-items:center;
+      margin-top:4px;
+    }
     .strikeInner{
       width: var(--base, 44px);
       height: var(--base, 44px);
@@ -1149,6 +1373,51 @@
     .modal{width:min(900px, calc(100% - 24px)); border:1px solid var(--border); background:linear-gradient(180deg, rgba(0,25,10,.92), rgba(0,10,5,.88)); border-radius:14px; box-shadow:0 0 30px rgba(0,255,106,.22); overflow:hidden; max-height:calc(100vh - 24px); display:flex; flex-direction:column;}
     .modalHead{padding:10px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); flex:0 0 auto;}
     .modalBody{padding:10px 12px; display:grid; gap:10px; overflow:auto; flex:1 1 auto;}
+    .timelineList{
+      position:relative;
+      display:grid;
+      gap:10px;
+      padding-left:20px;
+      min-height:16px;
+    }
+    .timelineList::before{
+      content:"";
+      position:absolute;
+      left:7px;
+      top:2px;
+      bottom:2px;
+      width:2px;
+      background: rgba(220,255,235,.45);
+      box-shadow: 0 0 8px rgba(0,255,106,.16);
+    }
+    .timelineItem{
+      border:1px solid rgba(0,255,106,.18);
+      border-radius:9px;
+      background: rgba(0,0,0,.22);
+      padding:8px;
+      display:grid;
+      gap:7px;
+      position:relative;
+    }
+    .timelineItem::before{
+      content:"";
+      position:absolute;
+      left:-18px;
+      top:14px;
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      background: rgba(220,255,235,.9);
+      box-shadow: 0 0 0 2px rgba(0,255,106,.18), 0 0 10px rgba(0,255,106,.20);
+    }
+    .timelineItemRow{
+      display:grid;
+      grid-template-columns: minmax(160px, .9fr) minmax(120px, 1.8fr) auto;
+      gap:8px;
+      align-items:center;
+    }
+    .timelineItemRow input{ width:100%; }
+    .timelineItemRow button{ white-space:nowrap; }
     .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
     .adminLoginWrap{
       position:absolute; inset:0;
@@ -1314,6 +1583,7 @@
       .status{ left:8px; right:8px; top:8px; bottom:auto; padding:7px 9px; }
       .modal{ width: calc(100% - 12px); max-height: calc(100vh - 12px); }
       .modalBody{ padding:8px 10px; }
+      .timelineItemRow{ grid-template-columns: 1fr; }
       .legendBox{ left:50%; right:auto; transform:translateX(-50%); bottom:8px; padding:7px 9px; gap:8px; }
       .camWatermark{ bottom:8px; padding:6px 8px; font-size:11px; }
       .edgeTab{ padding:8px 5px; font-size:9px; border-radius:0 9px 9px 0; }
@@ -1321,6 +1591,7 @@
       .statsSpacer{ height: 280px; }
       .chartControls{ grid-template-columns:1fr; }
       .chartRow{ grid-template-columns:1fr; }
+      .statsTimelineRow{ grid-template-columns:1fr; }
       .chartStage{ min-height: 220px; }
       .chartGrid{ grid-template-columns:1fr; }
       .barStrip{ gap:6px; }
@@ -1436,6 +1707,15 @@
               </div>
             </div>
           </div>
+          <div class="field graph3Only">
+            <label for="statsTimelineTitleInput">Statistics timeline title</label>
+            <div class="rangeRow">
+              <input id="statsTimelineTitleInput" type="text" placeholder="Timeline title" />
+              <button id="btnStatsTimelineAdd" class="ghost">ADD EVENT</button>
+              <div class="badge" id="statsTimelineCountBadge">EVENTS: 0</div>
+            </div>
+            <div class="statsTimelineRows" id="statsTimelineRows"></div>
+          </div>
         </div>
 
         <div class="chartGrid">
@@ -1461,6 +1741,24 @@
               </div>
             </div>
             <div class="xAxisLabel" id="barChartXAxisOut2">X-AXIS</div>
+          </div>
+        </div>
+        <div class="statsTimelineStage" id="statsTimelineStage">
+          <div class="statsTimelineHead">
+            <div class="badge">STATISTICS TIMELINE</div>
+            <div class="statsTimelineTitle" id="statsTimelineTitleOut">OPERATION TIMELINE</div>
+            <div class="statsTimelineHeadActions">
+              <button id="btnStatsTimelineQuickAdd" class="ghost">ADD EVENT CARD</button>
+            </div>
+            <div class="statsTimelineSearch">
+              <input id="statsTimelineSearchInput" type="text" placeholder="Search timeline by strike title/notes" />
+              <button id="btnStatsTimelineSearch" class="ghost">FIND EVENT</button>
+              <div class="badge" id="statsTimelineSearchCount">MATCHES: 0</div>
+              <div class="statsTimelineSearchMatches" id="statsTimelineSearchMatches"></div>
+            </div>
+          </div>
+          <div class="statsTimelineViewport">
+            <div class="statsTimelineRail" id="statsTimelineRail"></div>
           </div>
         </div>
         <div class="nodeStage" id="graph3Stage">
@@ -1818,13 +2116,23 @@
           <button id="btnCloseModal" class="ghost">CLOSE</button>
         </div>
         <div class="modalBody" id="modalBody">
+          <div class="field" id="sectionDate">
+            <label for="modalDate">Date</label>
+            <input id="modalDate" type="date" />
+          </div>
           <div class="row3" id="sectionMeta">
             <div class="field"><label for="modalLat">Latitude</label><input id="modalLat" type="text" readonly /></div>
             <div class="field"><label for="modalLng">Longitude</label><input id="modalLng" type="text" readonly /></div>
             <div class="field"><label for="modalCreated">Created</label><input id="modalCreated" type="text" readonly /></div>
           </div>
 
-          <div class="field" id="sectionTitle"><label for="modalTitle">Title (searchable)</label><input id="modalTitle" type="text" /></div>
+          <div class="field" id="sectionTitle">
+            <label for="modalTitle">Title (searchable)</label>
+            <input id="modalTitle" type="text" />
+            <div class="btnRow" style="margin-top:6px;">
+              <button id="btnViewOnTimeline" class="ghost" type="button">VIEW ON TIMELINE</button>
+            </div>
+          </div>
 
           <div class="row3" id="sectionStyle">
             <div class="field"><label for="modalColorBar">Strike color (preset)</label><div class="pickerBar" id="modalColorBar"></div></div>
@@ -1844,6 +2152,20 @@
           </div>
 
           <div class="field" id="sectionNotes"><label for="modalNotes">Notes (searchable)</label><textarea id="modalNotes"></textarea></div>
+          <div class="field" id="sectionTimelineToggle">
+            <label>Timeline (optional)</label>
+            <div class="btnRow">
+              <button id="btnToggleTimeline" class="ghost">ADD TIMELINE</button>
+              <div class="badge" id="timelineCountBadge">EVENTS: 0</div>
+            </div>
+          </div>
+          <div class="field" id="sectionTimeline" style="display:none;">
+            <label>Timeline events</label>
+            <div id="timelineList" class="timelineList"></div>
+            <div class="btnRow">
+              <button id="btnTimelineAdd" class="ghost">ADD EVENT</button>
+            </div>
+          </div>
 
           <div class="field" id="sectionPaths">
             <label>Flight paths connected to this strike</label>
@@ -1952,6 +2274,12 @@
           <input id="groupSplitToggle" type="checkbox" /> Split color
         </label>
         <div class="pickerBar" id="groupColorBar2"></div>
+      </div>
+      <div class="groupTimelineRow">
+        <input id="groupTimelineDate" type="date" />
+        <input id="groupTimelineLabel" type="text" placeholder="Grouped timeline event label" />
+        <button id="btnApplyGroupDate" class="ghost">SET DATE FOR SELECTED</button>
+        <button id="btnGroupTimelineEvent" class="ghost">GROUP AS EVENT</button>
       </div>
     </div>
   </div>
@@ -2955,6 +3283,18 @@ const btnNodeTypeBasic = document.getElementById("btnNodeTypeBasic");
 const btnNodeTypeInfo = document.getElementById("btnNodeTypeInfo");
 const btnNodeTypeImage = document.getElementById("btnNodeTypeImage");
 const btnNodeTypeCancel = document.getElementById("btnNodeTypeCancel");
+const statsTimelineTitleInput = document.getElementById("statsTimelineTitleInput");
+const btnStatsTimelineAdd = document.getElementById("btnStatsTimelineAdd");
+const statsTimelineRows = document.getElementById("statsTimelineRows");
+const statsTimelineCountBadge = document.getElementById("statsTimelineCountBadge");
+const statsTimelineTitleOut = document.getElementById("statsTimelineTitleOut");
+const statsTimelineViewportEl = document.querySelector(".statsTimelineViewport");
+const statsTimelineRail = document.getElementById("statsTimelineRail");
+const statsTimelineSearchInput = document.getElementById("statsTimelineSearchInput");
+const btnStatsTimelineSearch = document.getElementById("btnStatsTimelineSearch");
+const statsTimelineSearchCount = document.getElementById("statsTimelineSearchCount");
+const statsTimelineSearchMatchesEl = document.getElementById("statsTimelineSearchMatches");
+const btnStatsTimelineQuickAdd = document.getElementById("btnStatsTimelineQuickAdd");
 const chartDom = {
   graph1: {
     stage: document.getElementById("chartStage1"),
@@ -2998,6 +3338,62 @@ let graph3State = {
   edges: [],
   view: { zoom: 1, offsetX: 0, offsetY: 0 }
 };
+let statsTimelineState = {
+  title: "OPERATION TIMELINE",
+  events: [
+    { id: cryptoRandomId(), date: "2025-06-13", label: "OPERATION START", pos: 15 },
+    { id: cryptoRandomId(), date: "2025-06-18", label: "KEY STRIKE WAVE", pos: 48 },
+    { id: cryptoRandomId(), date: "2025-06-24", label: "FOLLOW-ON ACTION", pos: 82 }
+  ]
+};
+let statsTimelineSearchMatches = [];
+let statsTimelineSearchIndex = 0;
+let statsTimelineSearchLastQuery = "";
+let statsTimelineDaySegments = [];
+let statsTimelineDrag = null;
+let statsTimelineSuppressCardClick = false;
+let statsTimelineRenderedById = new Map();
+let statsTimelineSuppressClickUntil = 0;
+function getTimelineCardLeftPx(card){
+  const raw = Number.parseFloat(String(card?.style?.left || "").replace("px",""));
+  if (Number.isFinite(raw)) return raw;
+  return Number(card?.offsetLeft || 0);
+}
+function ensureManualTimelineEventByRenderedId(eventId){
+  if (!eventId) return null;
+  const id = String(eventId);
+  let idx = statsTimelineState.events.findIndex((e) => String(e?.id) === id);
+  if (idx >= 0) return statsTimelineState.events[idx];
+  const src = statsTimelineRenderedById.get(id);
+  if (!src) return null;
+  const evt = {
+    id: cryptoRandomId(),
+    strikeId: typeof src?.strikeId === "string" ? src.strikeId : null,
+    groupStrikeIds: Array.isArray(src?.groupStrikeIds) ? src.groupStrikeIds.map(String).slice(0, 300) : [],
+    date: isIsoDateString(src?.date) ? String(src.date) : "",
+    label: String(src?.label || "").slice(0, 80),
+    pos: Number.isFinite(+src?.pos) ? Math.max(0, Math.min(100, Math.round(+src.pos))) : 50,
+    orderPos: Number.isFinite(+src?.orderPos) ? Math.max(0, Math.min(100, +src.orderPos)) : null
+  };
+  statsTimelineState.events.push(evt);
+  return evt;
+}
+function persistTimelineOrder(orderIds){
+  const ids = Array.isArray(orderIds) ? orderIds.map((x) => String(x || "").trim()).filter(Boolean) : [];
+  if (!ids.length) return false;
+  let changed = false;
+  const n = ids.length;
+  ids.forEach((id, i) => {
+    const evt = ensureManualTimelineEventByRenderedId(id);
+    if (!evt) return;
+    const next = n <= 1 ? 50 : (i * 100 / (n - 1));
+    if (!Number.isFinite(+evt.orderPos) || Math.abs(+evt.orderPos - next) > 0.0001){
+      evt.orderPos = next;
+      changed = true;
+    }
+  });
+  return changed;
+}
 let nodeAddMode = false;
 let nodeConnectMode = false;
 let nodeConnectFromId = null;
@@ -3035,6 +3431,8 @@ function setActiveGraph(graphKey){
   if (chartDom.graph2.stage) chartDom.graph2.stage.classList.toggle("selected", barChartsState.active === "graph2");
   if (barChartsState.active !== "graph3") hideNodeTypePopup();
   renderBarChartEditor();
+  renderStatsTimelineEditor();
+  renderStatsTimeline();
   renderGraph3();
 }
 
@@ -3114,6 +3512,704 @@ function sanitizeGraph3State(incoming){
     offsetY: Number.isFinite(+src?.view?.offsetY) ? +src.view.offsetY : 0
   };
   return { nodes, edges, view };
+}
+function sanitizeStatsTimelineState(incoming){
+  const src = incoming && typeof incoming === "object" ? incoming : {};
+  const events = Array.isArray(src.events) ? src.events
+    .map((e) => ({
+      id: e?.id || cryptoRandomId(),
+      strikeId: typeof e?.strikeId === "string" ? e.strikeId : null,
+      groupStrikeIds: Array.isArray(e?.groupStrikeIds) ? e.groupStrikeIds.map(String).slice(0, 300) : [],
+      date: typeof e?.date === "string" ? e.date.slice(0, 40) : "",
+      label: typeof e?.label === "string" ? e.label.slice(0, 80) : "",
+      pos: Number.isFinite(+e?.pos) ? Math.max(0, Math.min(100, Math.round(+e.pos))) : 50,
+      orderPos: Number.isFinite(+e?.orderPos) ? Math.max(0, Math.min(100, +e.orderPos)) : null
+    }))
+    .slice(0, 80) : [];
+  return {
+    title: typeof src.title === "string" ? src.title.slice(0, 80) : "OPERATION TIMELINE",
+    events
+  };
+}
+function isIsoDateString(v){
+  return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
+function getStrikeDateForTimeline(s){
+  const raw = String(s?.eventDate || "").trim();
+  if (isIsoDateString(raw)) return raw;
+  const parsedFromField = extractDateFromNotesText(raw);
+  if (isIsoDateString(parsedFromField)) return parsedFromField;
+  const parsedFromNotes = extractDateFromNotesText(String(s?.notes || ""));
+  return isIsoDateString(parsedFromNotes) ? parsedFromNotes : "";
+}
+function getStrikeSortTimeForTimeline(s, dateIso){
+  const base = isIsoDateString(dateIso) ? Date.parse(`${dateIso}T00:00:00Z`) : NaN;
+  const createdMs = Date.parse(String(s?.createdAt || ""));
+  if (!Number.isFinite(base)) return Number.isFinite(createdMs) ? createdMs : NaN;
+  if (!Number.isFinite(createdMs)) return base;
+  const d = new Date(createdMs);
+  const secOfDay = (d.getUTCHours() * 3600) + (d.getUTCMinutes() * 60) + d.getUTCSeconds();
+  return base + (secOfDay * 1000);
+}
+function buildAutoStatsTimelineEventsFromStrikes(){
+  let sourceStrikes = [];
+  try{
+    sourceStrikes = Array.isArray(strikes) ? strikes : [];
+  }catch{
+    sourceStrikes = [];
+  }
+  const titled = sourceStrikes.filter((s) => String(s?.title || "").trim());
+  if (!titled.length) return [];
+
+  const groups = new Map();
+  for (const s of titled){
+    const title = String(s?.title || "").trim();
+    const date = getStrikeDateForTimeline(s);
+    if (!isIsoDateString(date)) continue;
+    const key = `${title}\u0000${date}`;
+    if (!groups.has(key)){
+      groups.set(key, {
+        title,
+        date,
+        strikeIds: [],
+        createdTimes: []
+      });
+    }
+    const g = groups.get(key);
+    if (s?.id) g.strikeIds.push(String(s.id));
+    const createdMs = Date.parse(String(s?.createdAt || ""));
+    if (Number.isFinite(createdMs)) g.createdTimes.push(createdMs);
+  }
+
+  return Array.from(groups.values()).map((g) => {
+    const createdMs = g.createdTimes.length ? Math.min(...g.createdTimes) : NaN;
+    let ts = Number.isFinite(createdMs) ? createdMs : Date.now();
+    if (isIsoDateString(g.date)){
+      const firstStrike = g.strikeIds.length ? strikes.find((s) => s.id === g.strikeIds[0]) : null;
+      const strikeBasedTs = getStrikeSortTimeForTimeline(firstStrike || null, g.date);
+      if (Number.isFinite(strikeBasedTs)) ts = strikeBasedTs;
+    }
+    const singleId = g.strikeIds.length === 1 ? g.strikeIds[0] : null;
+    return {
+      id: `auto-${cryptoRandomId()}`,
+      strikeId: singleId,
+      groupStrikeIds: g.strikeIds.length > 1 ? g.strikeIds.slice() : [],
+      date: g.date,
+      label: g.title,
+      ts,
+      pos: null,
+      auto: true
+    };
+  }).filter((e) => isIsoDateString(e?.date));
+}
+function resolveStatsTimelineRenderEvents(){
+  let allStrikes = [];
+  try{
+    allStrikes = Array.isArray(strikes) ? strikes : [];
+  }catch{
+    allStrikes = [];
+  }
+  const manual = Array.isArray(statsTimelineState.events)
+    ? statsTimelineState.events.map((e) => ({
+        id: e?.id || cryptoRandomId(),
+        strikeId: typeof e?.strikeId === "string" ? e.strikeId : null,
+        groupStrikeIds: Array.isArray(e?.groupStrikeIds) ? e.groupStrikeIds.map(String).slice(0, 300) : [],
+        date: typeof e?.date === "string" ? e.date : "",
+        label: typeof e?.label === "string" ? e.label : "",
+        pos: Number.isFinite(+e?.pos) ? Math.max(0, Math.min(100, Math.round(+e.pos))) : 50,
+        orderPos: Number.isFinite(+e?.orderPos) ? Math.max(0, Math.min(100, +e.orderPos)) : null,
+        // Manual cards are positioned by `pos` (draggable), date only controls day bucket.
+        sortTime: NaN,
+        auto: false
+      }))
+    : [];
+  const manualKeys = new Set(
+    manual
+      .map((e) => {
+        const label = String(e?.label || "").trim();
+        const date = String(e?.date || "").trim();
+        if (!label || !isIsoDateString(date)) return "";
+        return `${label}\u0000${date}`;
+      })
+      .filter(Boolean)
+  );
+  const auto = buildAutoStatsTimelineEventsFromStrikes().filter((e) => {
+    const label = String(e?.label || "").trim();
+    const date = String(e?.date || "").trim();
+    if (!label || !isIsoDateString(date)) return true;
+    return !manualKeys.has(`${label}\u0000${date}`);
+  });
+  const out = manual.concat(auto);
+
+  // Keep linked manual timeline cards synced to the current strike title/date.
+  for (const e of out){
+    if (e?.strikeId){
+      const s = allStrikes.find((x) => x.id === e.strikeId);
+      if (!s) continue;
+      const liveTitle = String(s.title || "").trim();
+      if (liveTitle) e.label = liveTitle;
+      const liveDate = getStrikeDateForTimeline(s);
+      if (isIsoDateString(liveDate)){
+        e.date = liveDate;
+        // Manual cards keep drag-controlled position; do not override with strike time.
+        if (e.auto){
+          const t = getStrikeSortTimeForTimeline(s, liveDate);
+          if (Number.isFinite(t)) e.sortTime = t;
+        }
+      } else {
+        e._hide = true;
+      }
+      continue;
+    }
+    if (Array.isArray(e?.groupStrikeIds) && e.groupStrikeIds.length){
+      const linked = e.groupStrikeIds.map((id) => allStrikes.find((x) => x.id === id)).filter(Boolean);
+      if (!linked.length) continue;
+      const dates = linked.map((s) => getStrikeDateForTimeline(s)).filter((d) => isIsoDateString(d)).sort();
+      if (dates.length){
+        e.date = dates[0];
+      }
+      const times = linked.map((s) => getStrikeSortTimeForTimeline(s, getStrikeDateForTimeline(s))).filter((t) => Number.isFinite(t));
+      if (times.length){
+        if (e.auto){
+          e.sortTime = Math.min(...times);
+        }
+      } else if (isIsoDateString(e.date)){
+        if (e.auto){
+          e.sortTime = Date.parse(`${e.date}T00:00:00Z`);
+        }
+      } else {
+        e._hide = true;
+      }
+      continue;
+    }
+    // Auto-heal legacy manual events by matching exact title to strikes.
+    const lbl = String(e?.label || "").trim();
+    if (!lbl) continue;
+    const matching = allStrikes.filter((s) => String(s?.title || "").trim() === lbl);
+    if (!matching.length) continue;
+    if (!e.strikeId && (!Array.isArray(e.groupStrikeIds) || !e.groupStrikeIds.length)){
+      const ids = matching.map((s) => String(s.id)).filter(Boolean);
+      if (ids.length === 1) e.strikeId = ids[0];
+      else if (ids.length > 1) e.groupStrikeIds = ids;
+    }
+    if (!isIsoDateString(e.date)){
+      const dates = matching.map((s) => getStrikeDateForTimeline(s)).filter((d) => isIsoDateString(d)).sort();
+      if (dates.length) e.date = dates[0];
+    }
+    if (!Number.isFinite(+e.sortTime) && isIsoDateString(e.date)){
+      const times = matching.map((s) => getStrikeSortTimeForTimeline(s, getStrikeDateForTimeline(s))).filter((t) => Number.isFinite(t));
+      e.sortTime = times.length ? Math.min(...times) : Date.parse(`${e.date}T00:00:00Z`);
+    }
+  }
+
+  let visible = out.filter((e) => !e?._hide);
+
+  // Final dedupe by exact label + exact ISO date across all event sources.
+  const mergedByKey = new Map();
+  for (const e of visible){
+    const label = String(e?.label || "").trim();
+    const date = String(e?.date || "").trim();
+    if (!label || !isIsoDateString(date)){
+      mergedByKey.set(`__raw__${e?.id || cryptoRandomId()}`, {
+        ...e,
+        strikeId: e?.strikeId || null,
+        groupStrikeIds: Array.isArray(e?.groupStrikeIds) ? e.groupStrikeIds.slice(0, 300) : [],
+        orderPos: Number.isFinite(+e?.orderPos) ? Math.max(0, Math.min(100, +e.orderPos)) : null
+      });
+      continue;
+    }
+    const key = `${label}\u0000${date}`;
+    const curIds = [
+      ...(e?.strikeId ? [String(e.strikeId)] : []),
+      ...(Array.isArray(e?.groupStrikeIds) ? e.groupStrikeIds.map(String) : [])
+    ].filter(Boolean);
+    const existing = mergedByKey.get(key);
+    if (!existing){
+      const uniq = Array.from(new Set(curIds));
+      mergedByKey.set(key, {
+        ...e,
+        label,
+        date,
+        strikeId: uniq.length === 1 ? uniq[0] : null,
+        groupStrikeIds: uniq.length > 1 ? uniq : [],
+        sortTime: Number.isFinite(+e?.sortTime) ? +e.sortTime : (isIsoDateString(date) ? Date.parse(`${date}T00:00:00Z`) : NaN),
+        pos: Number.isFinite(+e?.pos) ? +e.pos : 50,
+        orderPos: Number.isFinite(+e?.orderPos) ? Math.max(0, Math.min(100, +e.orderPos)) : null
+      });
+      continue;
+    }
+    const prevIds = [
+      ...(existing?.strikeId ? [String(existing.strikeId)] : []),
+      ...(Array.isArray(existing?.groupStrikeIds) ? existing.groupStrikeIds.map(String) : [])
+    ].filter(Boolean);
+    const mergedIds = Array.from(new Set(prevIds.concat(curIds)));
+    existing.strikeId = mergedIds.length === 1 ? mergedIds[0] : null;
+    existing.groupStrikeIds = mergedIds.length > 1 ? mergedIds : [];
+    const existingManual = existing?.auto === false;
+    const incomingManual = e?.auto === false;
+    if (incomingManual && !existingManual){
+      existing.id = e.id || existing.id;
+      existing.auto = false;
+      existing.pos = Number.isFinite(+e?.pos) ? +e.pos : existing.pos;
+      existing.orderPos = Number.isFinite(+e?.orderPos) ? Math.max(0, Math.min(100, +e.orderPos)) : existing.orderPos;
+      existing.sortTime = Number.isFinite(+e?.sortTime) ? +e.sortTime : existing.sortTime;
+    } else if (incomingManual && existingManual){
+      existing.id = e.id || existing.id;
+      if (Number.isFinite(+e?.pos)) existing.pos = +e.pos;
+      if (Number.isFinite(+e?.orderPos)) existing.orderPos = Math.max(0, Math.min(100, +e.orderPos));
+      if (Number.isFinite(+e?.sortTime)) existing.sortTime = +e.sortTime;
+    } else {
+      const tA = Number.isFinite(+existing.sortTime) ? +existing.sortTime : NaN;
+      const tB = Number.isFinite(+e?.sortTime) ? +e.sortTime : NaN;
+      if (Number.isFinite(tB) && (!Number.isFinite(tA) || tB < tA)) existing.sortTime = tB;
+      const pA = Number.isFinite(+existing.pos) ? +existing.pos : NaN;
+      const pB = Number.isFinite(+e?.pos) ? +e.pos : NaN;
+      if (Number.isFinite(pB) && (!Number.isFinite(pA) || pB < pA)) existing.pos = pB;
+    }
+  }
+  visible = Array.from(mergedByKey.values());
+
+  const dated = visible
+    .map((e, i) => {
+      let t = NaN;
+      if (e.auto && Number.isFinite(+e.ts)) t = +e.ts;
+      else if (isIsoDateString(e.date)) t = Date.parse(`${e.date}T00:00:00Z`);
+      return { i, t };
+    })
+    .filter((x) => Number.isFinite(x.t));
+  if (dated.length >= 1){
+    const minT = Math.min(...dated.map((x) => x.t));
+    const maxT = Math.max(...dated.map((x) => x.t));
+    const span = Math.max(1, maxT - minT);
+    for (const x of dated){
+      const e = visible[x.i];
+      if (e.auto){
+        const ratio = span === 0 ? 0.5 : (x.t - minT) / span;
+        e.pos = Math.max(4, Math.min(96, ratio * 100));
+        e.sortTime = x.t;
+      }
+    }
+  }
+  for (const e of visible){
+    if (!Number.isFinite(e.sortTime) && isIsoDateString(e.date)){
+      e.sortTime = Date.parse(`${e.date}T00:00:00Z`);
+    }
+  }
+  return visible;
+}
+function getStrikeTimelinePalette(strike){
+  if (!strike || typeof strike !== "object") return [];
+  const base = normalizeLegendColor(strike.color || "#00ff6a");
+  const out = [base];
+  if (strike.splitColor && strike.secondaryColor){
+    out.push(normalizeLegendColor(strike.secondaryColor));
+  }
+  return out.filter(Boolean);
+}
+function getTimelineBorderGradientForEvent(evt){
+  const palettes = [];
+  if (evt?.strikeId){
+    const s = strikes.find((x) => x.id === evt.strikeId);
+    if (s) palettes.push(...getStrikeTimelinePalette(s));
+  }
+  if (Array.isArray(evt?.groupStrikeIds) && evt.groupStrikeIds.length){
+    for (const id of evt.groupStrikeIds){
+      const s = strikes.find((x) => x.id === id);
+      if (s) palettes.push(...getStrikeTimelinePalette(s));
+    }
+  }
+  const colors = Array.from(new Set(palettes.map((c) => String(c).toLowerCase())));
+  if (!colors.length){
+    return "linear-gradient(90deg, rgba(0,255,106,.22), rgba(0,255,106,.22))";
+  }
+  if (colors.length === 1){
+    return `linear-gradient(90deg, ${colors[0]}, ${colors[0]})`;
+  }
+  const step = 100 / colors.length;
+  const stops = colors.map((c, i) => {
+    const from = (i * step).toFixed(3);
+    const to = ((i + 1) * step).toFixed(3);
+    return `${c} ${from}% ${to}%`;
+  }).join(", ");
+  return `linear-gradient(90deg, ${stops})`;
+}
+function formatTimelineDayLabel(msUtc){
+  const d = new Date(msUtc);
+  const yyyy = d.getUTCFullYear();
+  const mm = pad2(d.getUTCMonth() + 1);
+  const dd = pad2(d.getUTCDate());
+  return `${yyyy}-${mm}-${dd}`;
+}
+function addStatsTimelineEvent(){
+  if (PUBLIC_VIEW_MODE) return;
+  const n = (statsTimelineState.events?.length || 0) + 1;
+  statsTimelineState.events.push({
+    id: cryptoRandomId(),
+    strikeId: null,
+    groupStrikeIds: [],
+    date: new Date().toISOString().slice(0, 10),
+    label: `EVENT ${n}`,
+    pos: 50,
+    orderPos: 50
+  });
+  renderStatsTimelineEditor();
+  renderStatsTimeline();
+  autosaveLocal();
+}
+function moveManualTimelineEventToX(eventId, xPx){
+  if (!eventId) return false;
+  let idx = statsTimelineState.events.findIndex((e) => String(e?.id) === String(eventId));
+  if (idx < 0){
+    const src = statsTimelineRenderedById.get(String(eventId));
+    if (!src) return false;
+    const newEvt = {
+      id: cryptoRandomId(),
+      strikeId: typeof src?.strikeId === "string" ? src.strikeId : null,
+      groupStrikeIds: Array.isArray(src?.groupStrikeIds) ? src.groupStrikeIds.map(String).slice(0, 300) : [],
+      date: isIsoDateString(src?.date) ? String(src.date) : "",
+      label: String(src?.label || "").slice(0, 80),
+      pos: Number.isFinite(+src?.pos) ? Math.max(0, Math.min(100, Math.round(+src.pos))) : 50,
+      orderPos: Number.isFinite(+src?.orderPos) ? Math.max(0, Math.min(100, +src.orderPos)) : null
+    };
+    statsTimelineState.events.push(newEvt);
+    idx = statsTimelineState.events.length - 1;
+  }
+  const evt = statsTimelineState.events[idx];
+  const x = Math.max(0, Number(xPx) || 0);
+  const railW = Math.max(1, statsTimelineRail?.scrollWidth || statsTimelineRail?.clientWidth || 1);
+  const nextOrder = Math.max(0, Math.min(100, (x / railW) * 100));
+  const changed = !Number.isFinite(+evt.orderPos) || Math.abs(+evt.orderPos - nextOrder) > 0.0001;
+  evt.orderPos = nextOrder;
+  return changed;
+}
+function renderStatsTimeline(){
+  if (statsTimelineTitleOut) statsTimelineTitleOut.textContent = (statsTimelineState.title || "").trim() || "OPERATION TIMELINE";
+  if (!statsTimelineRail) return;
+  statsTimelineDaySegments = [];
+  statsTimelineRenderedById = new Map();
+  statsTimelineRail.textContent = "";
+  statsTimelineRail.style.width = "";
+  const events = resolveStatsTimelineRenderEvents();
+  if (!events.length){
+    const empty = document.createElement("div");
+    empty.style.cssText = "position:absolute; left:14px; top:22px; font-size:11px; opacity:.7;";
+    empty.textContent = "No timeline events yet.";
+    statsTimelineRail.appendChild(empty);
+    return;
+  }
+  const ordered = events.sort((a, b) => {
+    const at = Number.isFinite(+a.sortTime) ? +a.sortTime : NaN;
+    const bt = Number.isFinite(+b.sortTime) ? +b.sortTime : NaN;
+    if (Number.isFinite(at) && Number.isFinite(bt)){
+      if (at !== bt) return at - bt;
+      return (Number(a.pos) || 0) - (Number(b.pos) || 0);
+    }
+    if (Number.isFinite(at)) return -1;
+    if (Number.isFinite(bt)) return 1;
+    return (Number(a.pos) || 0) - (Number(b.pos) || 0);
+  });
+  const viewportW = Math.max(640, Math.round(statsTimelineViewportEl?.clientWidth || 820));
+  const startPad = 80;
+  const endPad = 120;
+  const dayInnerPad = 150;
+  const minGapPx = 200;
+  const perDayMinWidth = 320;
+  const oneDayMs = 86400000;
+  const dated = [];
+  const undated = [];
+  for (const e of ordered){
+    const dayMs = isIsoDateString(e.date) ? Date.parse(`${e.date}T00:00:00Z`) : NaN;
+    if (Number.isFinite(dayMs)) dated.push({ e, dayMs });
+    else undated.push(e);
+  }
+  const laidOut = [];
+  let cursorX = startPad;
+  if (dated.length){
+    const dayStarts = Array.from(new Set(dated.map((d) => d.dayMs))).sort((a, b) => a - b);
+    const dayEvents = new Map(dayStarts.map((d) => [d, []]));
+    for (const d of dated) dayEvents.get(d.dayMs)?.push(d.e);
+
+    const dayWidths = new Map();
+    for (const dayStart of dayStarts){
+      const count = dayEvents.get(dayStart)?.length || 0;
+      const needed = (2 * dayInnerPad) + Math.max(0, count - 1) * minGapPx;
+      dayWidths.set(dayStart, Math.max(perDayMinWidth, needed));
+    }
+
+    const dayMarkerX = new Map();
+    for (const dayStart of dayStarts){
+      dayMarkerX.set(dayStart, cursorX);
+      cursorX += dayWidths.get(dayStart) || perDayMinWidth;
+    }
+    const finalBoundaryDay = dayStarts[dayStarts.length - 1] + oneDayMs;
+    dayMarkerX.set(finalBoundaryDay, cursorX);
+    for (let i = 0; i < dayStarts.length; i++){
+      const startDay = dayStarts[i];
+      const endDay = startDay + oneDayMs;
+      const startX = Number(dayMarkerX.get(startDay));
+      const endX = Number(dayMarkerX.get(endDay));
+      if (!Number.isFinite(startX) || !Number.isFinite(endX) || endX <= startX) continue;
+      statsTimelineDaySegments.push({
+        date: formatTimelineDayLabel(startDay),
+        startX,
+        endX
+      });
+    }
+
+    const renderedDayLabels = new Set();
+    for (const dayStart of dayStarts){
+      const dayLabel = formatTimelineDayLabel(dayStart);
+      if (renderedDayLabels.has(dayLabel)) continue;
+      renderedDayLabels.add(dayLabel);
+      const x = dayMarkerX.get(dayStart);
+      const div = document.createElement("div");
+      div.className = "statsDayDivider";
+      div.style.left = `${Math.round(x)}px`;
+      statsTimelineRail.appendChild(div);
+      const lab = document.createElement("div");
+      lab.className = "statsDayLabel";
+      lab.style.left = `${Math.round(x)}px`;
+      lab.textContent = dayLabel;
+      statsTimelineRail.appendChild(lab);
+    }
+    const endDayLabel = formatTimelineDayLabel(finalBoundaryDay);
+    if (!renderedDayLabels.has(endDayLabel)){
+      const xEnd = dayMarkerX.get(finalBoundaryDay);
+      const endDiv = document.createElement("div");
+      endDiv.className = "statsDayDivider";
+      endDiv.style.left = `${Math.round(xEnd)}px`;
+      statsTimelineRail.appendChild(endDiv);
+      const endLab = document.createElement("div");
+      endLab.className = "statsDayLabel";
+      endLab.style.left = `${Math.round(xEnd)}px`;
+      endLab.textContent = endDayLabel;
+      statsTimelineRail.appendChild(endLab);
+    }
+
+    for (const dayStart of dayStarts){
+      const list = (dayEvents.get(dayStart) || []).slice();
+      const segmentStart = dayMarkerX.get(dayStart);
+      const segmentWidth = dayWidths.get(dayStart) || perDayMinWidth;
+      const minX = segmentStart + dayInnerPad;
+      const maxX = segmentStart + segmentWidth - dayInnerPad;
+      const based = list.map((e) => {
+        let t = Number.isFinite(+e.sortTime) ? +e.sortTime : dayStart;
+        if (!e.auto){
+          const r = Math.max(0, Math.min(1, (Number.isFinite(+e.pos) ? +e.pos : 50) / 100));
+          t = dayStart + Math.round(r * (oneDayMs - 1));
+        } else if (!Number.isFinite(t) || t < dayStart || t >= dayStart + oneDayMs){
+          const r = Math.max(0, Math.min(1, (Number.isFinite(+e.pos) ? +e.pos : 50) / 100));
+          t = dayStart + Math.round(r * (oneDayMs - 1));
+        }
+        const ratio = Math.max(0, Math.min(1, (t - dayStart) / oneDayMs));
+        return { e, x: minX + ratio * Math.max(1, (maxX - minX)) };
+      }).sort((a, b) => a.x - b.x);
+      if (based.length){
+        for (let i = 1; i < based.length; i++){
+          based[i].x = Math.max(based[i].x, based[i - 1].x + minGapPx);
+        }
+        if (based[based.length - 1].x > maxX){
+          const spread = Math.max(1, based.length - 1);
+          for (let i = 0; i < based.length; i++){
+            based[i].x = minX + ((maxX - minX) * i / spread);
+          }
+        }
+      }
+      based.forEach((b) => laidOut.push({ e: b.e, x: b.x }));
+    }
+  }
+  if (undated.length){
+    const baseStart = cursorX + 120;
+    const segmentW = Math.max(360, undated.length * minGapPx);
+    undated.forEach((e) => {
+      const r = Math.max(0, Math.min(1, (Number.isFinite(+e.pos) ? +e.pos : 50) / 100));
+      laidOut.push({ e, x: baseStart + (segmentW * r) });
+    });
+    cursorX = baseStart + segmentW;
+  }
+  const requiredW = Math.max(viewportW, Math.round(cursorX + endPad));
+  statsTimelineRail.style.width = `${requiredW}px`;
+  const usableStartX = startPad;
+  const usableEndX = Math.max(usableStartX + 1, requiredW - endPad);
+  const usableSpanX = Math.max(1, usableEndX - usableStartX);
+
+  laidOut.forEach(({ e, x }) => {
+    statsTimelineRenderedById.set(String(e?.id || ""), e);
+    let px = x;
+    if (!e.auto && Number.isFinite(+e?.orderPos)){
+      const r = Math.max(0, Math.min(1, (+e.orderPos) / 100));
+      px = usableStartX + (usableSpanX * r);
+    }
+    const left = `${Math.round(px)}px`;
+    const tick = document.createElement("div");
+    tick.className = "statsTimeTick";
+    tick.style.left = left;
+    statsTimelineRail.appendChild(tick);
+    const dot = document.createElement("div");
+    dot.className = "statsTimeDot";
+    dot.style.left = left;
+    statsTimelineRail.appendChild(dot);
+    const card = document.createElement("div");
+    card.className = "statsTimeCard";
+    card.style.left = left;
+    card.style.setProperty("--timeline-card-border", getTimelineBorderGradientForEvent(e));
+    card.setAttribute("data-event-id", String(e.id || ""));
+    card.classList.add("draggable");
+    if (e.strikeId || (Array.isArray(e.groupStrikeIds) && e.groupStrikeIds.length)){
+      card.classList.add("linked");
+      if (e.strikeId) card.setAttribute("data-strike-id", e.strikeId);
+      if (Array.isArray(e.groupStrikeIds) && e.groupStrikeIds.length){
+        card.setAttribute("data-group-strike-ids", e.groupStrikeIds.join(","));
+      }
+      card.setAttribute("title", "Jump to linked strike(s)");
+    }
+    card.innerHTML = `
+      <div class="statsTimeDate">${escapeHtml(e.date || "") || "DATE TBD"}</div>
+      <div class="statsTimeLabel">${escapeHtml((e.label || "").trim() || "EVENT")}</div>
+    `;
+    statsTimelineRail.appendChild(card);
+  });
+  const q = String(statsTimelineSearchInput?.value || "").trim();
+  if (q){
+    statsTimelineSearchMatches = collectTimelineSearchMatches(q);
+    if (statsTimelineSearchIndex >= statsTimelineSearchMatches.length) statsTimelineSearchIndex = 0;
+    if (statsTimelineSearchCount) statsTimelineSearchCount.textContent = `MATCHES: ${statsTimelineSearchMatches.length}`;
+    renderStatsTimelineSearchMatches(q, statsTimelineSearchMatches);
+    if (statsTimelineSearchMatches.length) focusTimelineSearchMatch(statsTimelineSearchMatches[statsTimelineSearchIndex]);
+  } else {
+    if (statsTimelineSearchCount) statsTimelineSearchCount.textContent = "MATCHES: 0";
+    statsTimelineSearchMatches = [];
+    statsTimelineSearchIndex = 0;
+    statsTimelineSearchLastQuery = "";
+    renderStatsTimelineSearchMatches("", []);
+  }
+}
+function renderStatsTimelineEditor(){
+  if (statsTimelineTitleInput) statsTimelineTitleInput.value = statsTimelineState.title || "";
+  if (!statsTimelineRows) return;
+  statsTimelineRows.textContent = "";
+  const events = Array.isArray(statsTimelineState.events) ? statsTimelineState.events : [];
+  events.forEach((e, i) => {
+    const row = document.createElement("div");
+    row.className = "statsTimelineRow";
+    row.innerHTML = `
+      <input type="text" data-st-field="date" data-st-index="${i}" value="${escapeHtml(e.date || "")}" placeholder="Date (e.g., 2025-06-18)" />
+      <input type="text" data-st-field="label" data-st-index="${i}" value="${escapeHtml(e.label || "")}" placeholder="Timeline event label" />
+      <input type="range" min="0" max="100" step="1" data-st-field="pos" data-st-index="${i}" value="${Number.isFinite(+e.pos) ? +e.pos : 50}" />
+      <button type="button" class="danger" data-st-del="${i}">DELETE</button>
+    `;
+    statsTimelineRows.appendChild(row);
+  });
+  if (statsTimelineCountBadge){
+    const autoCount = buildAutoStatsTimelineEventsFromStrikes().length;
+    statsTimelineCountBadge.textContent = `EVENTS: ${events.length + autoCount}`;
+  }
+}
+function buildStrikeTimelineSearchTextById(strikeId){
+  const s = strikes.find((x) => x.id === strikeId);
+  if (!s) return "";
+  return normalizeText(`${s.title || ""} ${s.notes || ""}`);
+}
+function collectTimelineSearchMatches(query){
+  const q = normalizeText(query).trim();
+  if (!q || !statsTimelineRail) return [];
+  const terms = q.split(/\s+/).filter(Boolean);
+  const cards = Array.from(statsTimelineRail.querySelectorAll(".statsTimeCard"));
+  return cards.filter((card) => {
+    const strikeId = card.getAttribute("data-strike-id");
+    const groupRaw = card.getAttribute("data-group-strike-ids") || "";
+    const groupIds = groupRaw ? groupRaw.split(",").map((x) => x.trim()).filter(Boolean) : [];
+    const hayParts = [];
+    if (strikeId) hayParts.push(buildStrikeTimelineSearchTextById(strikeId));
+    for (const id of groupIds){
+      const txt = buildStrikeTimelineSearchTextById(id);
+      if (txt) hayParts.push(txt);
+    }
+    if (!hayParts.length) return false;
+    const hay = hayParts.join(" ");
+    return terms.every((t) => hay.includes(t));
+  });
+}
+function focusTimelineSearchMatch(card){
+  if (!card || !statsTimelineViewportEl) return;
+  statsTimelineRail?.querySelectorAll(".statsTimeCard.searchHit").forEach((el) => el.classList.remove("searchHit"));
+  card.classList.add("searchHit");
+  const left = card.offsetLeft + (card.offsetWidth / 2) - (statsTimelineViewportEl.clientWidth / 2);
+  statsTimelineViewportEl.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+}
+function renderStatsTimelineSearchMatches(query, matches){
+  if (!statsTimelineSearchMatchesEl) return;
+  statsTimelineSearchMatchesEl.textContent = "";
+  if (!query || !Array.isArray(matches) || !matches.length){
+    statsTimelineSearchMatchesEl.classList.remove("open");
+    return;
+  }
+  matches.slice(0, 30).forEach((card, i) => {
+    if (!(card instanceof HTMLElement)) return;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "statsTimelineSearchMatch";
+    item.setAttribute("data-match-index", String(i));
+    const dateTxt = String(card.querySelector(".statsTimeDate")?.textContent || "DATE TBD").trim() || "DATE TBD";
+    const labelTxt = String(card.querySelector(".statsTimeLabel")?.textContent || "EVENT").trim() || "EVENT";
+    item.innerHTML = `
+      <div class="statsTimelineSearchMatchDate">${escapeHtml(dateTxt)}</div>
+      <div class="statsTimelineSearchMatchLabel">${escapeHtml(labelTxt)}</div>
+    `;
+    statsTimelineSearchMatchesEl.appendChild(item);
+  });
+  statsTimelineSearchMatchesEl.classList.add("open");
+}
+function executeStatsTimelineSearch(){
+  const query = String(statsTimelineSearchInput?.value || "").trim();
+  if (!query){
+    statsTimelineSearchMatches = [];
+    statsTimelineSearchIndex = 0;
+    statsTimelineSearchLastQuery = "";
+    if (statsTimelineSearchCount) statsTimelineSearchCount.textContent = "MATCHES: 0";
+    statsTimelineRail?.querySelectorAll(".statsTimeCard.searchHit").forEach((el) => el.classList.remove("searchHit"));
+    renderStatsTimelineSearchMatches("", []);
+    return;
+  }
+  if (query !== statsTimelineSearchLastQuery){
+    statsTimelineSearchMatches = collectTimelineSearchMatches(query);
+    statsTimelineSearchIndex = 0;
+    statsTimelineSearchLastQuery = query;
+  } else if (statsTimelineSearchMatches.length){
+    statsTimelineSearchIndex = (statsTimelineSearchIndex + 1) % statsTimelineSearchMatches.length;
+  } else {
+    statsTimelineSearchMatches = collectTimelineSearchMatches(query);
+    statsTimelineSearchIndex = 0;
+  }
+  if (statsTimelineSearchCount) statsTimelineSearchCount.textContent = `MATCHES: ${statsTimelineSearchMatches.length}`;
+  renderStatsTimelineSearchMatches(query, statsTimelineSearchMatches);
+  if (!statsTimelineSearchMatches.length){
+    setStateStatus("timeline search: no matches");
+    return;
+  }
+  focusTimelineSearchMatch(statsTimelineSearchMatches[statsTimelineSearchIndex]);
+  setStateStatus(`timeline search match ${statsTimelineSearchIndex + 1}/${statsTimelineSearchMatches.length}`);
+}
+function updateStatsTimelineSearchLive(){
+  const query = String(statsTimelineSearchInput?.value || "").trim();
+  statsTimelineSearchLastQuery = query;
+  if (!query){
+    statsTimelineSearchMatches = [];
+    statsTimelineSearchIndex = 0;
+    if (statsTimelineSearchCount) statsTimelineSearchCount.textContent = "MATCHES: 0";
+    statsTimelineRail?.querySelectorAll(".statsTimeCard.searchHit").forEach((el) => el.classList.remove("searchHit"));
+    renderStatsTimelineSearchMatches("", []);
+    return;
+  }
+  statsTimelineSearchMatches = collectTimelineSearchMatches(query);
+  statsTimelineSearchIndex = 0;
+  if (statsTimelineSearchCount) statsTimelineSearchCount.textContent = `MATCHES: ${statsTimelineSearchMatches.length}`;
+  renderStatsTimelineSearchMatches(query, statsTimelineSearchMatches);
+  if (!statsTimelineSearchMatches.length){
+    statsTimelineRail?.querySelectorAll(".statsTimeCard.searchHit").forEach((el) => el.classList.remove("searchHit"));
+    return;
+  }
+  focusTimelineSearchMatch(statsTimelineSearchMatches[0]);
 }
 
 function addBar(defaultName){
@@ -4051,6 +5147,215 @@ if (barRowsEl) barRowsEl.addEventListener("click", (ev) => {
   renderBarChartEditor();
   autosaveLocal();
 });
+if (statsTimelineTitleInput) statsTimelineTitleInput.addEventListener("input", () => {
+  if (PUBLIC_VIEW_MODE) return;
+  statsTimelineState.title = String(statsTimelineTitleInput.value || "").slice(0, 80);
+  renderStatsTimeline();
+  autosaveLocal();
+});
+if (btnStatsTimelineAdd) btnStatsTimelineAdd.addEventListener("click", () => {
+  addStatsTimelineEvent();
+});
+if (btnStatsTimelineQuickAdd) btnStatsTimelineQuickAdd.addEventListener("click", () => {
+  addStatsTimelineEvent();
+});
+if (btnStatsTimelineSearch) btnStatsTimelineSearch.addEventListener("click", () => {
+  executeStatsTimelineSearch();
+});
+if (statsTimelineSearchInput) statsTimelineSearchInput.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Enter") return;
+  ev.preventDefault();
+  executeStatsTimelineSearch();
+});
+if (statsTimelineSearchInput) statsTimelineSearchInput.addEventListener("input", () => {
+  updateStatsTimelineSearchLive();
+});
+if (statsTimelineSearchMatchesEl) statsTimelineSearchMatchesEl.addEventListener("click", (ev) => {
+  const t = ev.target;
+  if (!(t instanceof HTMLElement)) return;
+  const btn = t.closest(".statsTimelineSearchMatch");
+  if (!(btn instanceof HTMLElement)) return;
+  const idx = Number(btn.getAttribute("data-match-index"));
+  if (!Number.isInteger(idx) || idx < 0 || idx >= statsTimelineSearchMatches.length) return;
+  statsTimelineSearchIndex = idx;
+  focusTimelineSearchMatch(statsTimelineSearchMatches[idx]);
+  setStateStatus(`timeline search match ${idx + 1}/${statsTimelineSearchMatches.length}`);
+});
+if (statsTimelineRows) statsTimelineRows.addEventListener("input", (ev) => {
+  if (PUBLIC_VIEW_MODE) return;
+  const t = ev.target;
+  if (!(t instanceof HTMLInputElement)) return;
+  const idx = Number(t.getAttribute("data-st-index"));
+  const field = t.getAttribute("data-st-field");
+  if (!Number.isInteger(idx) || idx < 0 || idx >= statsTimelineState.events.length || !field) return;
+  const item = statsTimelineState.events[idx];
+  if (field === "date") item.date = String(t.value || "").slice(0, 40);
+  if (field === "label") item.label = String(t.value || "").slice(0, 80);
+  if (field === "pos") item.pos = Math.max(0, Math.min(100, Math.round(Number(t.value) || 0)));
+  renderStatsTimeline();
+  autosaveLocal();
+});
+if (statsTimelineRows) statsTimelineRows.addEventListener("click", (ev) => {
+  if (PUBLIC_VIEW_MODE) return;
+  const t = ev.target;
+  if (!(t instanceof HTMLElement)) return;
+  const delAttr = t.getAttribute("data-st-del");
+  if (delAttr === null) return;
+  const idx = Number(delAttr);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= statsTimelineState.events.length) return;
+  statsTimelineState.events.splice(idx, 1);
+  renderStatsTimelineEditor();
+  renderStatsTimeline();
+  autosaveLocal();
+});
+if (statsTimelineRail) statsTimelineRail.addEventListener("click", (ev) => {
+  if (Date.now() < statsTimelineSuppressClickUntil){
+    return;
+  }
+  if (ev.metaKey) return;
+  if (statsTimelineSuppressCardClick){
+    statsTimelineSuppressCardClick = false;
+    return;
+  }
+  const target = ev.target;
+  if (!(target instanceof HTMLElement)) return;
+  const card = target.closest(".statsTimeCard");
+  if (!card) return;
+  const strikeId = card.getAttribute("data-strike-id");
+  const groupRaw = card.getAttribute("data-group-strike-ids") || "";
+  const groupIds = groupRaw ? groupRaw.split(",").map((x) => x.trim()).filter(Boolean) : [];
+  let linked = [];
+  if (strikeId){
+    const s = strikes.find((x) => x.id === strikeId);
+    if (s) linked = [s];
+  } else if (groupIds.length){
+    linked = groupIds.map((id) => strikes.find((x) => x.id === id)).filter(Boolean);
+  }
+  if (!linked.length) return;
+  setAltPageOpen(false);
+  if (linked.length === 1){
+    map.easeTo({
+      center: [linked[0].lng, linked[0].lat],
+      zoom: Math.max(8.5, map.getZoom()),
+      duration: 700
+    });
+    timelineFocusStrikeIds = new Set([linked[0].id]);
+    updateGroupSelectionVisuals();
+    setStateStatus("strike highlighted (click strike to view info)");
+    return;
+  }
+  const lats = linked.map((s) => s.lat);
+  const lngs = linked.map((s) => s.lng);
+  const bounds = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
+  map.fitBounds(bounds, { padding: 80, duration: 700, maxZoom: 7.8 });
+  timelineFocusStrikeIds = new Set(linked.map((s) => s.id));
+  updateGroupSelectionVisuals();
+  setStateStatus(`group highlighted (${linked.length} strikes). Click one to view info.`);
+});
+if (statsTimelineRail) statsTimelineRail.addEventListener("mousedown", (ev) => {
+  if (PUBLIC_VIEW_MODE) return;
+  if (ev.button !== 0) return;
+  if (!ev.metaKey && !ev.ctrlKey) return;
+  const t = ev.target;
+  if (!(t instanceof HTMLElement)) return;
+  const card = t.closest(".statsTimeCard.draggable");
+  if (!(card instanceof HTMLElement)) return;
+  const eventId = String(card.getAttribute("data-event-id") || "").trim();
+  if (!eventId) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  statsTimelineSuppressCardClick = true;
+  statsTimelineSuppressClickUntil = Date.now() + 450;
+  const railRect = statsTimelineRail.getBoundingClientRect();
+  const startLeft = Number.parseFloat(card.style.left || "0") || card.offsetLeft || 0;
+  statsTimelineDrag = {
+    eventId,
+    card,
+    railRect,
+    startX: ev.clientX,
+    startLeft,
+    slotXs: [],
+    orderedIds: [],
+    cardById: new Map()
+  };
+  const cards = Array.from(statsTimelineRail.querySelectorAll(".statsTimeCard.draggable"))
+    .filter((c) => c instanceof HTMLElement)
+    .sort((a, b) => getTimelineCardLeftPx(a) - getTimelineCardLeftPx(b));
+  const slotXs = cards.map((c) => getTimelineCardLeftPx(c));
+  const orderedIds = cards.map((c) => String(c.getAttribute("data-event-id") || "")).filter(Boolean);
+  const cardById = new Map();
+  cards.forEach((c) => {
+    const id = String(c.getAttribute("data-event-id") || "");
+    if (id) cardById.set(id, c);
+  });
+  statsTimelineDrag.slotXs = slotXs;
+  statsTimelineDrag.orderedIds = orderedIds;
+  statsTimelineDrag.cardById = cardById;
+  card.classList.add("dragging");
+});
+window.addEventListener("mousemove", (ev) => {
+  if (!statsTimelineDrag || !statsTimelineRail) return;
+  const dx = ev.clientX - statsTimelineDrag.startX;
+  const railW = Math.max(1, statsTimelineRail.scrollWidth || statsTimelineRail.clientWidth);
+  const x = Math.max(0, Math.min(railW, statsTimelineDrag.startLeft + dx));
+  const dragId = String(statsTimelineDrag.eventId || "");
+  const baseOrder = Array.isArray(statsTimelineDrag.orderedIds) ? statsTimelineDrag.orderedIds.slice() : [];
+  const slots = Array.isArray(statsTimelineDrag.slotXs) ? statsTimelineDrag.slotXs : [];
+  if (!dragId || !baseOrder.length || !slots.length){
+    statsTimelineDrag.card.style.left = `${Math.round(x)}px`;
+    return;
+  }
+  const slotStart = Math.min(...slots);
+  const slotEnd = Math.max(...slots);
+  const count = baseOrder.length;
+  const evenSlots = [];
+  if (count <= 1){
+    evenSlots.push(Math.max(0, Math.min(railW, x)));
+  } else {
+    const span = Math.max(1, slotEnd - slotStart);
+    for (let i = 0; i < count; i++){
+      evenSlots.push(slotStart + (span * i / (count - 1)));
+    }
+  }
+  const others = baseOrder.filter((id) => id !== dragId);
+  let insertIdx = 0;
+  if (evenSlots.length > 1){
+    for (let i = 0; i < evenSlots.length - 1; i++){
+      const mid = (evenSlots[i] + evenSlots[i + 1]) / 2;
+      if (x >= mid) insertIdx = i + 1;
+      else break;
+    }
+  }
+  insertIdx = Math.max(0, Math.min(baseOrder.length - 1, insertIdx));
+  const nextOrder = others.slice();
+  nextOrder.splice(insertIdx, 0, dragId);
+  statsTimelineDrag.orderedIds = nextOrder;
+  for (let i = 0; i < nextOrder.length; i++){
+    const id = nextOrder[i];
+    const c = statsTimelineDrag.cardById.get(id);
+    if (!c) continue;
+    const slotX = evenSlots[i] ?? getTimelineCardLeftPx(c);
+    c.style.left = `${Math.round(slotX)}px`;
+  }
+});
+window.addEventListener("mouseup", (ev) => {
+  if (!statsTimelineDrag || !statsTimelineRail) return;
+  const drag = statsTimelineDrag;
+  statsTimelineDrag = null;
+  drag.card.classList.remove("dragging");
+  const changed = persistTimelineOrder(drag.orderedIds);
+  renderStatsTimelineEditor();
+  renderStatsTimeline();
+  if (changed){
+    autosaveLocal();
+    setStateStatus("timeline event moved");
+  }
+  statsTimelineSuppressCardClick = true;
+  statsTimelineSuppressClickUntil = Date.now() + 450;
+  setTimeout(() => {
+    statsTimelineSuppressCardClick = false;
+  }, 450);
+});
 setActiveGraph("graph1");
 setChartEditorOpen(false);
 setNodeModes({ add:false, connect:false });
@@ -4087,6 +5392,7 @@ function clampRotationDeg(v){
 /************ STRIKE DATA + MARKERS ************/
 let strikes = [];
 const strikeMarkers = new Map();
+let timelineFocusStrikeIds = new Set();
 
 let addMode = false;
 const btnAddMode = document.getElementById("btnAddMode");
@@ -4837,6 +6143,10 @@ function addStrikeMarker(strike){
     if (draggingStrikeId) return;
     if (ev.shiftKey) return;
     ev.stopPropagation();
+    if (timelineFocusStrikeIds.has(strike.id)){
+      timelineFocusStrikeIds.clear();
+      updateGroupSelectionVisuals();
+    }
 
     if (pathMode){
       if (!canEdit("edit flight paths")) return;
@@ -4907,6 +6217,8 @@ function renderStrikes(){
   updateGroupSelectionVisuals();
   updateGroupSelectionCount();
   updateBulkMatchCount();
+  renderStatsTimelineEditor();
+  renderStatsTimeline();
 }
 
 function updateTargetIconScaling(){
@@ -5039,9 +6351,12 @@ map.on("click", (e) => {
     icon: activeStrikeIcon,
     sizePx: activeStrikeSizePx,
     rotationDeg: activeStrikeRotationDeg,
+    eventDate: "",
     title: "",
     notes: "",
     images: [],
+    timelineEnabled: false,
+    timelineEvents: [],
     createdAt: new Date().toISOString()
   };
   strikes.unshift(strike);
@@ -5104,9 +6419,110 @@ function syncViewerSearchUI(){
 }
 
 function normalizeText(t){ return String(t||"").toLowerCase(); }
+function pad2(n){ return String(n).padStart(2, "0"); }
+function toIsoDate(y, m, d){
+  const year = Number(y), month = Number(m), day = Number(d);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return "";
+  if (year < 1900 || year > 2100) return "";
+  if (month < 1 || month > 12) return "";
+  if (day < 1 || day > 31) return "";
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+function normalizeYearMaybe2Digits(y){
+  const n = Number(y);
+  if (!Number.isInteger(n)) return NaN;
+  if (String(y).length === 2){
+    return n <= 79 ? (2000 + n) : (1900 + n);
+  }
+  return n;
+}
+function extractDateFromNotesText(text){
+  const src = String(text || "").trim();
+  if (!src) return "";
+  let m = src.match(/\b(20\d{2}|19\d{2})[-\/.](0?[1-9]|1[0-2])[-\/.](0?[1-9]|[12]\d|3[01])\b/);
+  if (m){
+    const iso = toIsoDate(m[1], m[2], m[3]);
+    if (iso) return iso;
+  }
+  m = src.match(/\b(0?[1-9]|1[0-2])[\/.-](0?[1-9]|[12]\d|3[01])[\/.-](20\d{2}|19\d{2})\b/);
+  if (m){
+    const iso = toIsoDate(m[3], m[1], m[2]);
+    if (iso) return iso;
+  }
+  m = src.match(/\b(0?[1-9]|1[0-2])[\/.-](0?[1-9]|[12]\d|3[01])[\/.-](\d{2})\b/);
+  if (m){
+    const yy = normalizeYearMaybe2Digits(m[3]);
+    const iso = toIsoDate(yy, m[1], m[2]);
+    if (iso) return iso;
+  }
+  m = src.match(/\b(0?[1-9]|[12]\d|3[01])[\/.-](0?[1-9]|1[0-2])[\/.-](20\d{2}|19\d{2})\b/);
+  if (m){
+    const iso = toIsoDate(m[3], m[2], m[1]);
+    if (iso) return iso;
+  }
+  m = src.match(/\b(0?[1-9]|[12]\d|3[01])[\/.-](0?[1-9]|1[0-2])[\/.-](\d{2})\b/);
+  if (m){
+    const yy = normalizeYearMaybe2Digits(m[3]);
+    const iso = toIsoDate(yy, m[2], m[1]);
+    if (iso) return iso;
+  }
+  const monthMap = {
+    january:1, jan:1,
+    february:2, feb:2,
+    march:3, mar:3,
+    april:4, apr:4,
+    may:5,
+    june:6, jun:6,
+    july:7, jul:7,
+    august:8, aug:8,
+    september:9, sep:9, sept:9,
+    october:10, oct:10,
+    november:11, nov:11,
+    december:12, dec:12
+  };
+  m = src.match(/\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,)?\s+(20\d{2}|19\d{2})\b/i);
+  if (m){
+    const month = monthMap[String(m[1] || "").toLowerCase()];
+    const iso = toIsoDate(m[3], month, m[2]);
+    if (iso) return iso;
+  }
+  m = src.match(/\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,)?\s+(\d{2})\b/i);
+  if (m){
+    const month = monthMap[String(m[1] || "").toLowerCase()];
+    const yy = normalizeYearMaybe2Digits(m[3]);
+    const iso = toIsoDate(yy, month, m[2]);
+    if (iso) return iso;
+  }
+  m = src.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)(?:,)?\s+(20\d{2}|19\d{2})\b/i);
+  if (m){
+    const month = monthMap[String(m[2] || "").toLowerCase()];
+    const iso = toIsoDate(m[3], month, m[1]);
+    if (iso) return iso;
+  }
+  m = src.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)(?:,)?\s+(\d{2})\b/i);
+  if (m){
+    const month = monthMap[String(m[2] || "").toLowerCase()];
+    const yy = normalizeYearMaybe2Digits(m[3]);
+    const iso = toIsoDate(yy, month, m[1]);
+    if (iso) return iso;
+  }
+  return "";
+}
+function sanitizeTimelineEvents(list){
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((it) => ({
+      id: it?.id || cryptoRandomId(),
+      at: typeof it?.at === "string" ? it.at.slice(0, 80) : "",
+      text: typeof it?.text === "string" ? it.text.slice(0, 400) : ""
+    }))
+    .filter((it) => it.at.trim() || it.text.trim())
+    .slice(0, 80);
+}
 function buildStrikeSearchText(s){
   const hasImages = Array.isArray(s.images) && s.images.length ? " hasimage " : " noimage ";
-  return normalizeText(`${s.title||""} ${s.notes||""} ${s.createdAt||""} ${s.icon||""} ${hasImages}`);
+  const timeline = sanitizeTimelineEvents(s?.timelineEvents).map((it) => `${it.at} ${it.text}`).join(" ");
+  return normalizeText(`${s.title||""} ${s.notes||""} ${s.eventDate||""} ${timeline} ${s.createdAt||""} ${s.icon||""} ${hasImages}`);
 }
 
 function applyStrikeSearch(){
@@ -5238,12 +6654,49 @@ const groupRotation = document.getElementById("groupRotation");
 const groupRotationVal = document.getElementById("groupRotationVal");
 const groupSplitToggle = document.getElementById("groupSplitToggle");
 const btnApplyGroupStyle = document.getElementById("btnApplyGroupStyle");
+const groupTimelineDate = document.getElementById("groupTimelineDate");
+const groupTimelineLabel = document.getElementById("groupTimelineLabel");
+const btnApplyGroupDate = document.getElementById("btnApplyGroupDate");
+const btnGroupTimelineEvent = document.getElementById("btnGroupTimelineEvent");
 let groupSelectedColor = activeStrikeColor;
 let groupSecondaryColor = (COLOR_PRESETS[1]?.hex || "#ff2a2a");
 let groupSelectedIcon = activeStrikeIcon;
 let groupSelectedSizePx = activeStrikeSizePx;
 let groupSelectedRotationDeg = activeStrikeRotationDeg;
 let groupSplitEnabled = false;
+function inferGroupTimelineDateFromSelection(){
+  const dates = [];
+  for (const id of selectedStrikeIds){
+    const s = strikes.find((x) => x.id === id);
+    if (!s) continue;
+    if (isIsoDateString(s.eventDate)) dates.push(s.eventDate);
+  }
+  return dates.length ? dates.sort()[0] : new Date().toISOString().slice(0, 10);
+}
+function inferGroupTimelineLabelFromSelection(){
+  const labels = [];
+  for (const id of selectedStrikeIds){
+    const s = strikes.find((x) => x.id === id);
+    const t = (s?.title || "").trim();
+    if (t) labels.push(t);
+    if (labels.length >= 3) break;
+  }
+  return labels.length ? labels.join(" + ") : `GROUP EVENT (${selectedStrikeIds.size})`;
+}
+function syncGroupTimelineInputsFromSelection(){
+  if (groupTimelineDate) groupTimelineDate.value = inferGroupTimelineDateFromSelection();
+  if (groupTimelineLabel) groupTimelineLabel.value = inferGroupTimelineLabelFromSelection();
+}
+function estimateTimelinePosFromStrikeIds(ids){
+  const allTimes = strikes.map((s) => Date.parse(String(s?.createdAt || ""))).filter((t) => Number.isFinite(t));
+  const selTimes = (ids || []).map((id) => Date.parse(String(strikes.find((s) => s.id === id)?.createdAt || ""))).filter((t) => Number.isFinite(t));
+  if (!allTimes.length || !selTimes.length) return 50;
+  const minT = Math.min(...allTimes);
+  const maxT = Math.max(...allTimes);
+  const span = Math.max(1, maxT - minT);
+  const avgSel = Math.round(selTimes.reduce((a, b) => a + b, 0) / selTimes.length);
+  return Math.max(0, Math.min(100, Math.round(((avgSel - minT) / span) * 100)));
+}
 function syncGlobalSizeUI(){
   globalSize.value = String(activeStrikeSizePx);
   globalSizeVal.textContent = `${activeStrikeSizePx}px`;
@@ -5366,7 +6819,7 @@ function updateGroupSelectionVisuals(){
   for (const [id, entry] of strikeMarkers){
     const el = entry.marker.getElement();
     if (!el) continue;
-    if (selectedStrikeIds.has(id)){
+    if (selectedStrikeIds.has(id) || timelineFocusStrikeIds.has(id)){
       el.style.outline = "2px solid rgba(220,255,235,.95)";
       el.style.outlineOffset = "2px";
     } else {
@@ -5472,6 +6925,7 @@ function syncGroupControlsFromSelection(){
   syncGroupSizeUI(groupSelectedSizePx);
   syncGroupRotationUI(groupSelectedRotationDeg);
   groupSplitToggle.checked = groupSplitEnabled;
+  syncGroupTimelineInputsFromSelection();
 }
 
 function showGroupPopupAt(x, y){
@@ -5557,6 +7011,58 @@ btnApplyGroupStyle.addEventListener("click", () => {
   autosaveLocal();
   setStateStatus(`group style updated (${changes.length})`);
 });
+if (btnApplyGroupDate) btnApplyGroupDate.addEventListener("click", () => {
+  if (!canEdit("set selected strike date")) return;
+  if (!selectedStrikeIds.size){
+    setStateStatus("group date: no selected strikes");
+    return;
+  }
+  const date = isIsoDateString(groupTimelineDate?.value) ? String(groupTimelineDate.value) : "";
+  if (!date){
+    setStateStatus("group date: enter a valid date");
+    return;
+  }
+  const changes = [];
+  for (const s of strikes){
+    if (!selectedStrikeIds.has(s.id)) continue;
+    if (s.eventDate === date) continue;
+    const before = deepClone(s);
+    s.eventDate = date;
+    const after = deepClone(s);
+    changes.push({ before, after });
+  }
+  if (!changes.length){
+    setStateStatus("group date: no changes");
+    return;
+  }
+  pushUndo({ type:"bulk_date_selected", changes });
+  renderStatsTimeline();
+  autosaveLocal();
+  setStateStatus(`group date updated (${changes.length})`);
+});
+if (btnGroupTimelineEvent) btnGroupTimelineEvent.addEventListener("click", () => {
+  if (!canEdit("group selected strikes as timeline event")) return;
+  if (!selectedStrikeIds.size){
+    setStateStatus("group timeline: no selected strikes");
+    return;
+  }
+  const ids = Array.from(selectedStrikeIds);
+  const date = isIsoDateString(groupTimelineDate?.value) ? String(groupTimelineDate.value) : inferGroupTimelineDateFromSelection();
+  const label = String(groupTimelineLabel?.value || "").trim().slice(0, 80) || inferGroupTimelineLabelFromSelection();
+  statsTimelineState.events.push({
+    id: cryptoRandomId(),
+    strikeId: null,
+    groupStrikeIds: ids,
+    date,
+    label,
+    pos: estimateTimelinePosFromStrikeIds(ids),
+    orderPos: estimateTimelinePosFromStrikeIds(ids)
+  });
+  renderStatsTimelineEditor();
+  renderStatsTimeline();
+  autosaveLocal();
+  setStateStatus(`grouped ${ids.length} strikes into timeline event`);
+});
 
 btnClearBoxSelection.addEventListener("click", () => {
   selectedStrikeIds.clear();
@@ -5575,6 +7081,7 @@ renderGroupIconOptions();
 syncGroupSizeUI(groupSelectedSizePx);
 syncGroupRotationUI(groupSelectedRotationDeg);
 groupSplitToggle.checked = groupSplitEnabled;
+syncGroupTimelineInputsFromSelection();
 updateGroupSelectionCount();
 
 /************ MODAL ************/
@@ -5583,7 +7090,9 @@ const modalBody = document.getElementById("modalBody");
 const modalLat = document.getElementById("modalLat");
 const modalLng = document.getElementById("modalLng");
 const modalCreated = document.getElementById("modalCreated");
+const modalDate = document.getElementById("modalDate");
 const modalTitle = document.getElementById("modalTitle");
+const btnViewOnTimeline = document.getElementById("btnViewOnTimeline");
 const modalNotes = document.getElementById("modalNotes");
 const modalColorBar = document.getElementById("modalColorBar");
 const modalIconBar = document.getElementById("modalIconBar");
@@ -5593,6 +7102,10 @@ const btnClearImages = document.getElementById("btnClearImages");
 const modalPathList = document.getElementById("modalPathList");
 const btnSaveStrike = document.getElementById("btnSaveStrike");
 const btnDeleteStrike = document.getElementById("btnDeleteStrike");
+const btnToggleTimeline = document.getElementById("btnToggleTimeline");
+const btnTimelineAdd = document.getElementById("btnTimelineAdd");
+const timelineList = document.getElementById("timelineList");
+const timelineCountBadge = document.getElementById("timelineCountBadge");
 
 const modalSize = document.getElementById("modalSize");
 const modalSizeVal = document.getElementById("modalSizeVal");
@@ -5607,17 +7120,48 @@ let modalSelectedColor = COLOR_PRESETS[0].hex;
 let modalSelectedIcon = "rocket";
 let modalSelectedSizePx = 44;
 let modalSelectedRotationDeg = 0;
+let modalTimelineEnabled = false;
+let modalTimelineEvents = [];
 let modalSnapshotBeforeEdit = null;
 const sectionMeta = document.getElementById("sectionMeta");
+const sectionDate = document.getElementById("sectionDate");
 const sectionTitle = document.getElementById("sectionTitle");
 const sectionStyle = document.getElementById("sectionStyle");
 const sectionNotes = document.getElementById("sectionNotes");
+const sectionTimelineToggle = document.getElementById("sectionTimelineToggle");
+const sectionTimeline = document.getElementById("sectionTimeline");
 const sectionPaths = document.getElementById("sectionPaths");
 const sectionImages = document.getElementById("sectionImages");
 const sectionActions = document.getElementById("sectionActions");
 
+function focusStrikeOnStatsTimeline(strikeId){
+  if (!strikeId || !statsTimelineRail) return false;
+  setAltPageOpen(true);
+  renderStatsTimeline();
+  const cards = Array.from(statsTimelineRail.querySelectorAll(".statsTimeCard"));
+  const direct = cards.find((card) => card.getAttribute("data-strike-id") === strikeId);
+  if (direct){
+    focusTimelineSearchMatch(direct);
+    setStateStatus("timeline event focused");
+    return true;
+  }
+  const grouped = cards.find((card) => {
+    const raw = card.getAttribute("data-group-strike-ids") || "";
+    if (!raw) return false;
+    return raw.split(",").map((x) => x.trim()).filter(Boolean).includes(strikeId);
+  });
+  if (grouped){
+    focusTimelineSearchMatch(grouped);
+    setStateStatus("group timeline event focused");
+    return true;
+  }
+  setStateStatus("no timeline event found for this strike");
+  return false;
+}
+
 function setModalReadOnly(readOnly){
   const ro = !!readOnly;
+  modalDate.disabled = ro;
   modalTitle.readOnly = ro;
   modalNotes.readOnly = ro;
   modalSize.disabled = ro;
@@ -5639,6 +7183,11 @@ function setModalReadOnly(readOnly){
   if (imgHelp) imgHelp.style.display = ro ? "none" : "";
   if (btnSaveStrike) btnSaveStrike.disabled = ro;
   if (btnDeleteStrike) btnDeleteStrike.disabled = ro;
+  if (btnToggleTimeline) btnToggleTimeline.disabled = ro;
+  if (btnTimelineAdd) btnTimelineAdd.disabled = ro || !modalTimelineEnabled;
+  if (timelineList){
+    timelineList.querySelectorAll("input,button").forEach((el) => { el.disabled = ro; });
+  }
 }
 
 function openLightbox(src){
@@ -5708,6 +7257,14 @@ if (btnDeleteTextBox){
     pushUndo({ type:"delete_text_box", textBox: removed });
     autosaveLocal();
     closeTextBoxModal();
+  });
+}
+if (btnViewOnTimeline){
+  btnViewOnTimeline.addEventListener("click", () => {
+    if (!activeStrikeId) return;
+    const id = activeStrikeId;
+    closeStrikeModal();
+    focusStrikeOnStatsTimeline(id);
   });
 }
 
@@ -5941,10 +7498,44 @@ function renderModalPathList(){
   });
 }
 
+function renderTimelineEditor(){
+  if (!timelineList) return;
+  timelineList.innerHTML = "";
+  if (timelineCountBadge) timelineCountBadge.textContent = `EVENTS: ${modalTimelineEvents.length}`;
+  if (btnToggleTimeline){
+    btnToggleTimeline.textContent = modalTimelineEnabled ? "REMOVE TIMELINE" : "ADD TIMELINE";
+    btnToggleTimeline.classList.toggle("danger", modalTimelineEnabled);
+    btnToggleTimeline.classList.toggle("ghost", !modalTimelineEnabled);
+  }
+  if (sectionTimeline){
+    sectionTimeline.style.display = modalTimelineEnabled ? "" : "none";
+  }
+  if (!modalTimelineEnabled) return;
+  if (!modalTimelineEvents.length){
+    timelineList.innerHTML = `<div style="font-size:11px; opacity:.78;">No events yet.</div>`;
+    return;
+  }
+  modalTimelineEvents.forEach((item, idx) => {
+    const row = document.createElement("div");
+    row.className = "timelineItem";
+    row.innerHTML = `
+      <div class="timelineItemRow">
+        <input type="text" data-tl-field="at" data-tl-index="${idx}" placeholder="Date / time (e.g., 2026-03-04 09:30 UTC)" value="${escapeAttr(item.at)}" />
+        <input type="text" data-tl-field="text" data-tl-index="${idx}" placeholder="Event details" value="${escapeAttr(item.text)}" />
+        <div class="btnRow">
+          <button class="ghost" data-tl-move="${idx}" data-tl-dir="-1" title="Move up">UP</button>
+          <button class="ghost" data-tl-move="${idx}" data-tl-dir="1" title="Move down">DOWN</button>
+          <button class="danger" data-tl-del="${idx}" title="Delete event">DELETE</button>
+        </div>
+      </div>`;
+    timelineList.appendChild(row);
+  });
+}
+
 function applyModalSectionOrder(isNewStrike){
   const ordered = isNewStrike
-    ? [sectionMeta, sectionTitle, sectionStyle, sectionNotes, sectionImages, sectionPaths, sectionActions]
-    : [sectionMeta, sectionTitle, sectionNotes, sectionImages, sectionStyle, sectionPaths, sectionActions];
+    ? [sectionDate, sectionMeta, sectionTitle, sectionStyle, sectionNotes, sectionImages, sectionTimelineToggle, sectionTimeline, sectionPaths, sectionActions]
+    : [sectionDate, sectionMeta, sectionTitle, sectionNotes, sectionImages, sectionTimelineToggle, sectionTimeline, sectionStyle, sectionPaths, sectionActions];
   ordered.forEach((el) => {
     if (el) modalBody.appendChild(el);
   });
@@ -5961,6 +7552,12 @@ function openStrikeModal(id, opts = {}){
   modalLat.value = String(s.lat);
   modalLng.value = String(s.lng);
   modalCreated.value = (s.createdAt || "").replace("T"," ").replace("Z"," UTC");
+  const hasStoredDate = (typeof s.eventDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.eventDate));
+  const noteDate = extractDateFromNotesText(s.notes || "");
+  modalDate.value = hasStoredDate
+    ? s.eventDate
+    : (noteDate || "");
+  modalDate.dataset.autofill = hasStoredDate ? "0" : "1";
   modalTitle.value = s.title || "";
   modalNotes.value = s.notes || "";
   modalImages.value = "";
@@ -5969,11 +7566,14 @@ function openStrikeModal(id, opts = {}){
   modalSelectedIcon  = ICON_TYPES.some(t => t.key === s.icon) ? s.icon : "rocket";
   modalSelectedSizePx = Number.isFinite(+s.sizePx) ? Math.max(8, Math.min(120, +s.sizePx)) : 44;
   modalSelectedRotationDeg = clampRotationDeg(s.rotationDeg);
+  modalTimelineEnabled = !!s.timelineEnabled;
+  modalTimelineEvents = sanitizeTimelineEvents(s.timelineEvents);
 
   renderModalColorBar();
   renderModalIconBar();
   syncModalSizeUI();
   syncModalRotationUI();
+  renderTimelineEditor();
   setModalReadOnly(PUBLIC_VIEW_MODE);
   renderImageGrid(s.images || []);
 
@@ -5997,10 +7597,17 @@ document.getElementById("btnSaveStrike").addEventListener("click", () => {
 
   s.title = (modalTitle.value || "").trim();
   s.notes = modalNotes.value || "";
+  // Date box is authoritative for timeline dating.
+  const modalDateVal = String(modalDate.value || "");
+  s.eventDate = /^\d{4}-\d{2}-\d{2}$/.test(modalDateVal)
+    ? modalDateVal
+    : (extractDateFromNotesText(s.notes || "") || "");
   s.color = modalSelectedColor || COLOR_PRESETS[0].hex;
   s.icon  = modalSelectedIcon || "rocket";
   s.sizePx = modalSelectedSizePx;
   s.rotationDeg = clampRotationDeg(modalSelectedRotationDeg);
+  s.timelineEnabled = !!modalTimelineEnabled;
+  s.timelineEvents = s.timelineEnabled ? sanitizeTimelineEvents(modalTimelineEvents) : [];
 
   const entry = strikeMarkers.get(s.id);
   if (entry){
@@ -6022,6 +7629,7 @@ document.getElementById("btnSaveStrike").addEventListener("click", () => {
 
   closeAndNullSnapshot();
   applyStrikeSearch();
+  renderStatsTimeline();
   updateTargetIconScaling();
   autosaveLocal();
   refreshArrowSources();
@@ -6055,6 +7663,81 @@ document.getElementById("btnDeleteStrike").addEventListener("click", () => {
   refreshArrowSources();
   autosaveLocal();
   updateBulkMatchCount();
+});
+
+if (btnToggleTimeline){
+  btnToggleTimeline.addEventListener("click", () => {
+    if (!canEdit("toggle strike timeline")) return;
+    if (modalTimelineEnabled){
+      if (!confirm("Remove timeline from this strike?")) return;
+      modalTimelineEnabled = false;
+      modalTimelineEvents = [];
+    } else {
+      modalTimelineEnabled = true;
+    }
+    renderTimelineEditor();
+    setModalReadOnly(PUBLIC_VIEW_MODE);
+  });
+}
+if (btnTimelineAdd){
+  btnTimelineAdd.addEventListener("click", () => {
+    if (!canEdit("add timeline event")) return;
+    if (!modalTimelineEnabled) return;
+    modalTimelineEvents.push({ id: cryptoRandomId(), at: "", text: "" });
+    renderTimelineEditor();
+    setModalReadOnly(PUBLIC_VIEW_MODE);
+  });
+}
+if (timelineList){
+  timelineList.addEventListener("input", (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    const idx = Number(t.getAttribute("data-tl-index"));
+    const field = t.getAttribute("data-tl-field");
+    if (!Number.isInteger(idx) || idx < 0 || idx >= modalTimelineEvents.length) return;
+    if (field === "at") modalTimelineEvents[idx].at = String(t.value || "").slice(0, 80);
+    if (field === "text") modalTimelineEvents[idx].text = String(t.value || "").slice(0, 400);
+  });
+  timelineList.addEventListener("click", (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLElement)) return;
+    if (!canEdit("edit timeline event")) return;
+    const del = t.getAttribute("data-tl-del");
+    if (del !== null){
+      const idx = Number(del);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= modalTimelineEvents.length) return;
+      modalTimelineEvents.splice(idx, 1);
+      renderTimelineEditor();
+      setModalReadOnly(PUBLIC_VIEW_MODE);
+      return;
+    }
+    const move = t.getAttribute("data-tl-move");
+    const dir = Number(t.getAttribute("data-tl-dir"));
+    if (move === null || !Number.isInteger(dir)) return;
+    const idx = Number(move);
+    const to = idx + dir;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= modalTimelineEvents.length) return;
+    if (to < 0 || to >= modalTimelineEvents.length) return;
+    const tmp = modalTimelineEvents[idx];
+    modalTimelineEvents[idx] = modalTimelineEvents[to];
+    modalTimelineEvents[to] = tmp;
+    renderTimelineEditor();
+    setModalReadOnly(PUBLIC_VIEW_MODE);
+  });
+}
+modalNotes.addEventListener("input", () => {
+  if (PUBLIC_VIEW_MODE) return;
+  const detected = extractDateFromNotesText(modalNotes.value || "");
+  const dateEmpty = !String(modalDate.value || "").trim();
+  const allowAutofill = modalDate.dataset.autofill !== "0";
+  if (detected && (dateEmpty || allowAutofill)){
+    modalDate.value = detected;
+    modalDate.dataset.autofill = "1";
+  }
+});
+modalDate.addEventListener("input", () => {
+  // Manual date edit turns off notes-driven overwrite.
+  modalDate.dataset.autofill = "0";
 });
 
 /************ IMAGES ************/
@@ -6794,7 +8477,8 @@ function serializeStateObject(){
     textBoxes,
     orgChart: captureOrgChartState(),
     barCharts: deepClone(barChartsState),
-    graph3: deepClone(graph3State)
+    graph3: deepClone(graph3State),
+    statsTimeline: deepClone(statsTimelineState)
   };
 }
 function autosaveLocal(options = {}){
@@ -6946,6 +8630,7 @@ function loadFromObject(obj, options = {}){
   selectedStrikeIds.clear();
   barChartsState = sanitizeBarChartsState(obj?.barCharts, obj?.barChart);
   graph3State = sanitizeGraph3State(obj?.graph3);
+  statsTimelineState = sanitizeStatsTimelineState(obj?.statsTimeline);
   applyOrgChartState(obj?.orgChart);
   selectedNodeId = null;
   nodeConnectFromId = null;
@@ -6964,9 +8649,14 @@ function loadFromObject(obj, options = {}){
       icon: ICON_TYPES.some(t => t.key === s.icon) ? s.icon : "rocket",
       sizePx: Number.isFinite(+s.sizePx) ? Math.max(8, Math.min(120, +s.sizePx)) : 44,
       rotationDeg: clampRotationDeg(s.rotationDeg),
+      eventDate: (typeof s.eventDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.eventDate))
+        ? s.eventDate
+        : (extractDateFromNotesText(s.notes || "") || ""),
       title: s.title || "",
       notes: s.notes || "",
       images: Array.isArray(s.images) ? s.images.filter(x => typeof x === "string" && x.startsWith("data:image/")) : [],
+      timelineEnabled: !!s.timelineEnabled,
+      timelineEvents: sanitizeTimelineEvents(s.timelineEvents),
       createdAt: s.createdAt || new Date().toISOString()
     }))
     .sort((a,b) => (b.createdAt||"").localeCompare(a.createdAt||""))
@@ -7172,9 +8862,14 @@ function createStrikeFromTemplate(template, lngLat){
     icon: ICON_TYPES.some(x => x.key === t.icon) ? t.icon : (t.icon || activeStrikeIcon),
     sizePx: Number.isFinite(+t.sizePx) ? Math.max(8, Math.min(120, +t.sizePx)) : activeStrikeSizePx,
     rotationDeg: Number.isFinite(+t.rotationDeg) ? clampRotationDeg(+t.rotationDeg) : activeStrikeRotationDeg,
+    eventDate: (typeof t.eventDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(t.eventDate))
+      ? t.eventDate
+      : new Date().toISOString().slice(0, 10),
     title: (t.title || "").trim(),
     notes: t.notes || "",
     images: Array.isArray(t.images) ? t.images.slice() : [],
+    timelineEnabled: !!t.timelineEnabled,
+    timelineEvents: sanitizeTimelineEvents(t.timelineEvents),
     createdAt: new Date().toISOString()
   };
   strikes.unshift(strike);
@@ -7332,6 +9027,21 @@ function undoLast(){
     updateGroupSelectionCount();
     autosaveLocal();
     setStateStatus("undo: group style");
+    return;
+  }
+
+  if (u.type === "bulk_date_selected"){
+    const arr = Array.isArray(u.changes) ? u.changes : [];
+    if (!arr.length){ setStateStatus("undo: group date"); return; }
+    for (const c of arr){
+      const b = c.before;
+      const idx = strikes.findIndex((x) => x.id === b.id);
+      if (idx < 0) continue;
+      strikes[idx] = b;
+    }
+    renderStatsTimeline();
+    autosaveLocal();
+    setStateStatus("undo: group date");
     return;
   }
 
