@@ -1194,6 +1194,73 @@
       backdrop-filter: blur(6px);
     }
     .viewerOptionsPanel.show{ display:grid; }
+    .viewerReportPanel{
+      position:absolute;
+      top:56px;
+      right:12px;
+      z-index:17010;
+      width:min(380px, calc(100% - 24px));
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      box-shadow: 0 0 22px var(--shadow);
+      border-radius:12px;
+      padding:10px;
+      display:none;
+      gap:10px;
+      backdrop-filter: blur(6px);
+    }
+    .viewerReportPanel.show{ display:grid; }
+    .adminReportsPanel{
+      position:absolute;
+      top:56px;
+      right:12px;
+      z-index:17010;
+      width:min(460px, calc(100% - 24px));
+      max-height:min(76vh, 760px);
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      box-shadow: 0 0 22px var(--shadow);
+      border-radius:12px;
+      padding:10px;
+      display:none;
+      gap:10px;
+      backdrop-filter: blur(6px);
+      overflow:auto;
+    }
+    .adminReportsPanel.show{ display:grid; }
+    .reportList{
+      border:1px solid rgba(0,255,106,.18);
+      border-radius:10px;
+      background: rgba(0,0,0,.22);
+      padding:8px;
+      display:grid;
+      gap:6px;
+      max-height:240px;
+      overflow:auto;
+    }
+    .reportItem{
+      border:1px solid rgba(0,255,106,.2);
+      border-radius:8px;
+      padding:6px 8px;
+      background: rgba(0,0,0,.22);
+      cursor:pointer;
+      display:grid;
+      gap:2px;
+      font-size:11px;
+    }
+    .reportItem.active{
+      border-color: rgba(220,255,235,.7);
+      box-shadow: 0 0 12px rgba(0,255,106,.14);
+    }
+    .reportDetail{
+      border:1px solid rgba(0,255,106,.18);
+      border-radius:10px;
+      background: rgba(0,0,0,.22);
+      padding:8px;
+      display:grid;
+      gap:8px;
+      font-size:11px;
+    }
 
     .status{
       display:none !important;
@@ -2063,9 +2130,11 @@
     </div>
 
     <div class="hudTab visible" id="hudTab">
+      <button id="btnReportEvent" class="ghost" title="Submit a viewer report">REPORT EVENT</button>
       <button id="btnViewerOptions" class="ghost" title="Viewer options">OPTIONS</button>
       <button id="btnToggleStats" title="Open statistics page">STATISTICS</button>
       <button id="btnToggleChartEditor" class="onlyStats" title="Show or hide graph editor">SHOW EDITOR</button>
+      <button id="btnAdminReports" class="ghost" title="Review submitted strike reports" style="display:none;">STRIKE REPORTS</button>
       <button id="btnRestore" title="Restore map controls">MAP CONTROL</button>
       <button id="btnExportViewerEmails" class="ghost" title="Download captured viewer emails" style="display:none;">EMAIL LOG</button>
       <button id="btnAdminLogin" class="ghost" title="Administrator login">ADMIN LOGIN</button>
@@ -2087,6 +2156,36 @@
       <div class="btnRow">
         <button id="btnViewerFocusNext" class="ghost">GO TO MATCH</button>
         <div class="badge" id="viewerMatchCount">MATCHES: 0</div>
+      </div>
+    </div>
+    <div class="viewerReportPanel" id="viewerReportPanel" aria-label="Viewer report event panel">
+      <div class="title" style="font-size:11px;">REPORT EVENT</div>
+      <div style="font-size:11px; opacity:.9;">Select icon and then click map in strike location.</div>
+      <div class="field">
+        <label for="viewerReportIconSelect">Icon</label>
+        <select id="viewerReportIconSelect">
+          <option value="rocket">ROCKET HIT</option>
+          <option value="ak47">SKI MASK</option>
+          <option value="target">TARGET</option>
+          <option value="naval">ANCHOR</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="viewerReportColorBar">Color</label>
+        <div class="pickerBar" id="viewerReportColorBar"></div>
+      </div>
+      <div class="btnRow">
+        <button id="btnViewerReportClose" class="ghost">CLOSE</button>
+      </div>
+    </div>
+    <div class="adminReportsPanel" id="adminReportsPanel" aria-label="Strike reports panel">
+      <div class="title" style="font-size:11px;">STRIKE REPORTS</div>
+      <div class="btnRow">
+        <button id="btnAdminReportsRefresh" class="ghost">REFRESH</button>
+      </div>
+      <div class="reportList" id="adminReportsList"></div>
+      <div class="reportDetail" id="adminReportsDetail">
+        <div style="opacity:.8;">Select a report to review.</div>
       </div>
     </div>
     <div class="adminLoginWrap" id="adminLoginWrap" role="dialog" aria-modal="true" aria-label="Administrator login">
@@ -2224,6 +2323,37 @@
             <button id="btnSaveStrike">SAVE</button>
             <button id="btnDeleteStrike" class="danger">DELETE</button>
           </div>
+        </div>
+      </div>
+    </div>
+    <div class="modalWrap" id="reportModalWrap" role="dialog" aria-modal="true" aria-label="Report event details">
+      <div class="modal">
+        <div class="modalHead">
+          <div class="title" style="font-size:11px;">REPORT EVENT DETAILS</div>
+          <div class="btnRow">
+            <button id="btnSubmitReport" type="button" class="ghost">SUBMIT</button>
+            <button id="btnCloseReportModal" type="button" class="ghost">CLOSE</button>
+          </div>
+        </div>
+        <div class="modalBody" id="reportModalBody">
+          <div class="field"><label for="reportDate">Date</label><input id="reportDate" type="date" /></div>
+          <div class="row3">
+            <div class="field"><label for="reportLat">Latitude</label><input id="reportLat" type="text" readonly /></div>
+            <div class="field"><label for="reportLng">Longitude</label><input id="reportLng" type="text" readonly /></div>
+            <div class="field"><label for="reportCreated">Created</label><input id="reportCreated" type="text" readonly /></div>
+          </div>
+          <div class="field"><label for="reportTitle">Title</label><input id="reportTitle" type="text" /></div>
+          <div class="field"><label for="reportSourceUrl">Source URL (article/post)</label><input id="reportSourceUrl" type="url" placeholder="https://example.com/article" /></div>
+          <div class="field"><label for="reportNotes">Notes</label><textarea id="reportNotes"></textarea></div>
+          <div class="field" id="reportImagesSection">
+            <label for="reportImages">Attach images (required)</label>
+            <div class="btnRow">
+              <input id="reportImages" type="file" accept="image/*" multiple />
+              <button id="btnClearReportImages" type="button" class="danger">CLEAR IMAGES</button>
+            </div>
+            <div id="reportImageGrid" class="thumbGrid" style="margin-top:10px;"></div>
+          </div>
+          <div class="field"><div id="reportModalErr" style="color:#ff9a9a; font-size:11px;"></div></div>
         </div>
       </div>
     </div>
@@ -2507,6 +2637,10 @@ const VIEWER_EMAIL_LOG_KEY = "retroWarMap.viewerEmailLog.v1";
 const VIEWER_EMAIL_API = "/api/viewer-email";
 const VIEWER_EMAIL_STATUS_API = "/api/viewer-email-status";
 const VIEWER_EMAIL_EXPORT_API = "/api/viewer-email-export";
+const STRIKE_REPORTS_API = "/api/strike-reports";
+const STRIKE_REPORT_SUBMIT_API = "/api/strike-report";
+const STRIKE_REPORT_APPROVE_API = "/api/strike-reports-approve";
+const STRIKE_REPORT_REJECT_API = "/api/strike-reports-reject";
 // Optional: set this to your deployed Google Apps Script Web App URL.
 // Example: https://script.google.com/macros/s/AKfycb.../exec
 const GOOGLE_SHEETS_WEBHOOK_URL = "";
@@ -2527,7 +2661,18 @@ const btnAdminLogout = document.getElementById("btnAdminLogout");
 const btnPublishLive = document.getElementById("btnPublishLive");
 const btnExportViewerEmails = document.getElementById("btnExportViewerEmails");
 const btnViewerOptions = document.getElementById("btnViewerOptions");
+const btnReportEvent = document.getElementById("btnReportEvent");
+const btnAdminReports = document.getElementById("btnAdminReports");
 const viewerOptionsPanel = document.getElementById("viewerOptionsPanel");
+const viewerReportPanel = document.getElementById("viewerReportPanel");
+const viewerReportIconSelect = document.getElementById("viewerReportIconSelect");
+const viewerReportColorBar = document.getElementById("viewerReportColorBar");
+const btnViewerReportPlace = document.getElementById("btnViewerReportPlace");
+const btnViewerReportClose = document.getElementById("btnViewerReportClose");
+const adminReportsPanel = document.getElementById("adminReportsPanel");
+const btnAdminReportsRefresh = document.getElementById("btnAdminReportsRefresh");
+const adminReportsList = document.getElementById("adminReportsList");
+const adminReportsDetail = document.getElementById("adminReportsDetail");
 const viewerFlightOpacity = document.getElementById("viewerFlightOpacity");
 const viewerFlightOpacityVal = document.getElementById("viewerFlightOpacityVal");
 const viewerStrikeSearch = document.getElementById("viewerStrikeSearch");
@@ -2544,12 +2689,35 @@ const viewerEmailForm = document.getElementById("viewerEmailForm");
 const viewerEmailInput = document.getElementById("viewerEmailInput");
 const viewerEmailErr = document.getElementById("viewerEmailErr");
 const btnViewerEmailAdmin = document.getElementById("btnViewerEmailAdmin");
+const reportModalWrap = document.getElementById("reportModalWrap");
+const btnCloseReportModal = document.getElementById("btnCloseReportModal");
+const btnSubmitReport = document.getElementById("btnSubmitReport");
+const reportDate = document.getElementById("reportDate");
+const reportLat = document.getElementById("reportLat");
+const reportLng = document.getElementById("reportLng");
+const reportCreated = document.getElementById("reportCreated");
+const reportTitle = document.getElementById("reportTitle");
+const reportSourceUrl = document.getElementById("reportSourceUrl");
+const reportNotes = document.getElementById("reportNotes");
+const reportImages = document.getElementById("reportImages");
+const reportImageGrid = document.getElementById("reportImageGrid");
+const btnClearReportImages = document.getElementById("btnClearReportImages");
+const reportModalErr = document.getElementById("reportModalErr");
+const LOCAL_STRIKE_REPORTS_KEY = "viewerStrikeReportsQueueV1";
 let securityState = { enabled:false, unlocked:true, pinHash:"" };
 let viewerOptionsOpen = false;
+let viewerReportPanelOpen = false;
+let viewerReportPlacementMode = false;
+let viewerReportColor = COLOR_PRESETS[0].hex;
 let viewerEmailSubmitted = false;
 let viewerEmailGateOpen = false;
 let viewerEmailTimer = null;
 let viewerEmailStatusReady = false;
+let viewerReportDraft = null;
+const viewerReportPreviewMarkers = new Map();
+let adminStrikeReports = [];
+let activeAdminStrikeReportId = null;
+let approvedStrikeFocusIds = new Set();
 
 function isLocalBypassAuthMode(){
   return window.location.protocol === "file:";
@@ -2592,6 +2760,39 @@ function appendViewerEmailLog(email, webhookStatus){
     list.splice(0, list.length - 5000);
   }
   return saveViewerEmailLog(list);
+}
+function loadLocalStrikeReports(){
+  try{
+    const raw = localStorage.getItem(LOCAL_STRIKE_REPORTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x) => x && typeof x === "object" && typeof x.id === "string");
+  }catch{
+    return [];
+  }
+}
+function saveLocalStrikeReports(items){
+  try{
+    localStorage.setItem(LOCAL_STRIKE_REPORTS_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+    return true;
+  }catch{
+    return false;
+  }
+}
+function upsertLocalStrikeReport(item){
+  const list = loadLocalStrikeReports();
+  const idx = list.findIndex((x) => x.id === item.id);
+  if (idx >= 0) list[idx] = item;
+  else list.unshift(item);
+  if (list.length > 2000) list.length = 2000;
+  saveLocalStrikeReports(list);
+}
+function removeLocalStrikeReportById(id){
+  const rid = String(id || "");
+  if (!rid) return;
+  const next = loadLocalStrikeReports().filter((x) => x.id !== rid);
+  saveLocalStrikeReports(next);
 }
 async function fetchViewerEmailExportFromServer(){
   if (isLocalBypassAuthMode()) return null;
@@ -2811,6 +3012,231 @@ function setViewerOptionsOpen(open){
     btnViewerOptions.classList.toggle("ghost", !viewerOptionsOpen);
   }
 }
+function setViewerReportPanelOpen(open){
+  viewerReportPanelOpen = !!open;
+  const visible = viewerReportPanelOpen && !isAdminMode();
+  if (viewerReportPanel) viewerReportPanel.classList.toggle("show", visible);
+  setViewerReportPlacementMode(visible);
+  if (btnReportEvent) btnReportEvent.classList.toggle("ghost", !viewerReportPanelOpen);
+}
+function setViewerReportPlacementMode(on){
+  viewerReportPlacementMode = !!on;
+}
+function renderViewerReportColorBar(){
+  if (!viewerReportColorBar) return;
+  viewerReportColorBar.innerHTML = "";
+  COLOR_PRESETS.forEach((c) => {
+    const d = document.createElement("div");
+    d.className = "swatch" + (c.hex.toLowerCase() === String(viewerReportColor || "").toLowerCase() ? " selected" : "");
+    d.style.background = c.hex;
+    d.title = c.name;
+    d.addEventListener("click", () => {
+      viewerReportColor = c.hex;
+      renderViewerReportColorBar();
+    });
+    viewerReportColorBar.appendChild(d);
+  });
+}
+function addViewerReportPreviewMarker(rep){
+  if (!rep || !map) return;
+  const el = makeStrikeEl(rep);
+  el.style.cursor = "default";
+  const marker = new maplibregl.Marker({ element: el, anchor:"center" })
+    .setLngLat([rep.lng, rep.lat])
+    .addTo(map);
+  viewerReportPreviewMarkers.set(rep.id, { marker, data: rep });
+}
+function clearViewerReportPreviewMarkers(){
+  for (const [, entry] of viewerReportPreviewMarkers){
+    try{ entry.marker.remove(); }catch{}
+  }
+  viewerReportPreviewMarkers.clear();
+}
+function renderReportImageGrid(images){
+  if (!reportImageGrid) return;
+  reportImageGrid.innerHTML = "";
+  const arr = Array.isArray(images) ? images : [];
+  if (!arr.length) return;
+  arr.forEach((src, idx) => {
+    const wrap = document.createElement("div");
+    wrap.className = "thumb";
+    wrap.innerHTML = `
+      <img src="${escapeAttr(src)}" alt="Report image ${idx + 1}">
+      <div class="thumbBar">
+        <div class="meta">IMG ${idx + 1}</div>
+        <button class="danger" data-remove-report-img="${idx}">REMOVE</button>
+      </div>`;
+    reportImageGrid.appendChild(wrap);
+  });
+}
+function openReportModal(draft){
+  if (!draft || !reportModalWrap) return;
+  viewerReportDraft = draft;
+  if (reportLat) reportLat.value = String(draft.lat);
+  if (reportLng) reportLng.value = String(draft.lng);
+  if (reportCreated) reportCreated.value = String(draft.createdAt || "").replace("T"," ").replace("Z"," UTC");
+  if (reportDate) reportDate.value = draft.eventDate || "";
+  if (reportTitle) reportTitle.value = draft.title || "";
+  if (reportSourceUrl) reportSourceUrl.value = draft.sourceUrl || "";
+  if (reportNotes) reportNotes.value = draft.notes || "";
+  if (reportImages) reportImages.value = "";
+  if (reportModalErr) reportModalErr.textContent = "";
+  renderReportImageGrid(draft.images || []);
+  reportModalWrap.style.display = "flex";
+  requestAnimationFrame(() => reportTitle?.focus());
+}
+function closeReportModal(){
+  if (!reportModalWrap) return;
+  reportModalWrap.style.display = "none";
+  viewerReportDraft = null;
+}
+function renderAdminStrikeReportsList(){
+  if (!adminReportsList) return;
+  adminReportsList.innerHTML = "";
+  if (!adminStrikeReports.length){
+    adminReportsList.innerHTML = `<div style="opacity:.78; font-size:11px;">No pending strike reports.</div>`;
+    return;
+  }
+  adminStrikeReports.forEach((r) => {
+    const row = document.createElement("div");
+    row.className = "reportItem" + (activeAdminStrikeReportId === r.id ? " active" : "");
+    row.setAttribute("data-report-id", r.id);
+    row.innerHTML = `
+      <div><b>${escapeHtml(r.title || "Untitled")}</b></div>
+      <div style="opacity:.8;">${escapeHtml(r.eventDate || "DATE TBD")} • ${escapeHtml(r.icon || "rocket")} • ${escapeHtml(r.color || "")}</div>
+      <div style="opacity:.7;">${escapeHtml(r.submittedAt || "")}</div>`;
+    adminReportsList.appendChild(row);
+  });
+}
+function renderAdminStrikeReportDetail(){
+  if (!adminReportsDetail) return;
+  const rep = adminStrikeReports.find((r) => r.id === activeAdminStrikeReportId);
+  if (!rep){
+    adminReportsDetail.innerHTML = `<div style="opacity:.8;">Select a report to review.</div>`;
+    return;
+  }
+  const imgs = Array.isArray(rep.images) ? rep.images : [];
+  adminReportsDetail.innerHTML = `
+    <div><b>${escapeHtml(rep.title || "Untitled")}</b></div>
+    <div>${escapeHtml(rep.notes || "")}</div>
+    <div>DATE: ${escapeHtml(rep.eventDate || "DATE TBD")}</div>
+    <div>SOURCE: ${
+      rep.sourceUrl
+        ? `<a href="${escapeAttr(rep.sourceUrl)}" target="_blank" rel="noopener noreferrer" style="color:#8fd0ff;">${escapeHtml(rep.sourceUrl)}</a>`
+        : "—"
+    }</div>
+    <div>LOC: ${escapeHtml(String(rep.lat))}, ${escapeHtml(String(rep.lng))}</div>
+    <div>ICON/COLOR: ${escapeHtml(rep.icon || "rocket")} / ${escapeHtml(rep.color || "")}</div>
+    <div class="thumbGrid" id="adminReportImageGrid"></div>
+    <div class="btnRow">
+      <button id="btnApproveStrikeReport">APPROVE</button>
+      <button id="btnRejectStrikeReport" class="danger">REJECT</button>
+    </div>
+  `;
+  const imgGrid = document.getElementById("adminReportImageGrid");
+  if (imgGrid){
+    imgs.forEach((src) => {
+      const t = document.createElement("div");
+      t.className = "thumb";
+      t.innerHTML = `<img src="${escapeAttr(src)}" alt="Report image">`;
+      imgGrid.appendChild(t);
+    });
+  }
+  document.getElementById("btnApproveStrikeReport")?.addEventListener("click", async () => {
+    if (rep.source !== "local"){
+      try{
+        await authRequest(STRIKE_REPORT_APPROVE_API, "POST", { id: rep.id });
+      }catch(e){
+        setStateStatus(`approve failed: ${e?.message || e}`);
+        return;
+      }
+    }else{
+      removeLocalStrikeReportById(rep.id);
+    }
+    const s = {
+      id: cryptoRandomId(),
+      lat: +(+rep.lat).toFixed(6),
+      lng: +(+rep.lng).toFixed(6),
+      color: rep.color || COLOR_PRESETS[0].hex,
+      splitColor: false,
+      secondaryColor: null,
+      icon: ICON_TYPES.some((t) => t.key === rep.icon) ? rep.icon : "rocket",
+      sizePx: 20,
+      rotationDeg: clampRotationDeg(rep.rotationDeg),
+      eventDate: (typeof rep.eventDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rep.eventDate)) ? rep.eventDate : "",
+      sourceUrl: (typeof rep.sourceUrl === "string" ? rep.sourceUrl.trim() : ""),
+      title: rep.title || "",
+      notes: rep.notes || "",
+      images: Array.isArray(rep.images) ? rep.images.filter((x) => typeof x === "string" && x.startsWith("data:image/")) : [],
+      timelineEnabled: false,
+      timelineEvents: [],
+      createdAt: new Date().toISOString()
+    };
+    strikes.unshift(s);
+    renderStrikes();
+    approvedStrikeFocusIds = new Set([s.id]);
+    updateGroupSelectionVisuals();
+    autosaveLocal();
+    adminStrikeReports = adminStrikeReports.filter((x) => x.id !== rep.id);
+    activeAdminStrikeReportId = adminStrikeReports[0]?.id || null;
+    renderAdminStrikeReportsList();
+    renderAdminStrikeReportDetail();
+    setStateStatus("strike report approved");
+  });
+  document.getElementById("btnRejectStrikeReport")?.addEventListener("click", async () => {
+    if (rep.source !== "local"){
+      try{
+        await authRequest(STRIKE_REPORT_REJECT_API, "POST", { id: rep.id });
+      }catch(e){
+        setStateStatus(`reject failed: ${e?.message || e}`);
+        return;
+      }
+    }else{
+      removeLocalStrikeReportById(rep.id);
+    }
+    adminStrikeReports = adminStrikeReports.filter((x) => x.id !== rep.id);
+    activeAdminStrikeReportId = adminStrikeReports[0]?.id || null;
+    renderAdminStrikeReportsList();
+    renderAdminStrikeReportDetail();
+    setStateStatus("strike report rejected");
+  });
+}
+async function refreshAdminStrikeReports(){
+  if (!isAdminMode()) return;
+  const localPending = loadLocalStrikeReports()
+    .filter((r) => (r?.status || "pending") === "pending")
+    .map((r) => ({ ...r, source: "local" }));
+  try{
+    const data = await authRequest(STRIKE_REPORTS_API, "GET");
+    const list = Array.isArray(data?.reports) ? data.reports : [];
+    const remotePending = list
+      .filter((r) => (r?.status || "pending") === "pending")
+      .map((r) => ({ ...r, source: "remote" }));
+    const byId = new Map();
+    remotePending.forEach((r) => byId.set(String(r.id), r));
+    localPending.forEach((r) => {
+      if (!byId.has(String(r.id))) byId.set(String(r.id), r);
+    });
+    adminStrikeReports = Array.from(byId.values()).sort((a, b) => {
+      const ta = Number(a?.createdAtTs || 0);
+      const tb = Number(b?.createdAtTs || 0);
+      return tb - ta;
+    });
+    if (!adminStrikeReports.some((r) => r.id === activeAdminStrikeReportId)){
+      activeAdminStrikeReportId = adminStrikeReports[0]?.id || null;
+    }
+    renderAdminStrikeReportsList();
+    renderAdminStrikeReportDetail();
+  }catch(e){
+    adminStrikeReports = localPending;
+    if (!adminStrikeReports.some((r) => r.id === activeAdminStrikeReportId)){
+      activeAdminStrikeReportId = adminStrikeReports[0]?.id || null;
+    }
+    renderAdminStrikeReportsList();
+    renderAdminStrikeReportDetail();
+    setStateStatus(`reports load failed (showing local queue): ${e?.message || e}`);
+  }
+}
 function setAdminMode(admin){
   adminSessionActive = !!admin;
   PUBLIC_VIEW_MODE = !adminSessionActive;
@@ -2835,6 +3261,8 @@ function applyAccessMode(){
   if (btnPublishLive) btnPublishLive.style.display = "none";
   if (btnExportViewerEmails) btnExportViewerEmails.style.display = admin ? "" : "none";
   if (btnViewerOptions) btnViewerOptions.style.display = admin ? "none" : "";
+  if (btnReportEvent) btnReportEvent.style.display = admin ? "none" : "";
+  if (btnAdminReports) btnAdminReports.style.display = admin ? "" : "none";
   if (statsBtn){
     statsBtn.style.display = "";
     statsBtn.disabled = false;
@@ -2857,6 +3285,16 @@ function applyAccessMode(){
   }
   if (admin) setViewerOptionsOpen(false);
   else setViewerOptionsOpen(viewerOptionsOpen);
+  if (admin){
+    setViewerReportPanelOpen(false);
+    setViewerReportPlacementMode(false);
+    clearViewerReportPreviewMarkers();
+    closeReportModal();
+    if (adminReportsPanel) adminReportsPanel.classList.remove("show");
+    refreshAdminStrikeReports();
+  } else {
+    if (adminReportsPanel) adminReportsPanel.classList.remove("show");
+  }
   if (admin){
     closeViewerEmailGate();
     if (viewerEmailTimer){
@@ -3019,7 +3457,171 @@ if (btnAdminLogout){
 if (btnViewerOptions){
   btnViewerOptions.addEventListener("click", () => {
     if (isAdminMode()) return;
+    setViewerReportPanelOpen(false);
     setViewerOptionsOpen(!viewerOptionsOpen);
+  });
+}
+if (btnReportEvent){
+  btnReportEvent.addEventListener("click", () => {
+    if (isAdminMode()) return;
+    setViewerOptionsOpen(false);
+    const next = !viewerReportPanelOpen;
+    setViewerReportPanelOpen(next);
+    setStateStatus(next ? "report mode: click map in strike location" : "report mode off");
+  });
+}
+if (btnViewerReportClose){
+  btnViewerReportClose.addEventListener("click", () => {
+    setViewerReportPanelOpen(false);
+    setStateStatus("report mode off");
+  });
+}
+if (btnAdminReports){
+  btnAdminReports.addEventListener("click", async () => {
+    if (!isAdminMode()) return;
+    const next = !adminReportsPanel?.classList.contains("show");
+    if (adminReportsPanel) adminReportsPanel.classList.toggle("show", next);
+    btnAdminReports.classList.toggle("ghost", !next);
+    if (next) await refreshAdminStrikeReports();
+  });
+}
+if (btnAdminReportsRefresh){
+  btnAdminReportsRefresh.addEventListener("click", () => {
+    refreshAdminStrikeReports();
+  });
+}
+if (adminReportsList){
+  adminReportsList.addEventListener("click", (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLElement)) return;
+    const item = t.closest(".reportItem");
+    if (!(item instanceof HTMLElement)) return;
+    const id = String(item.getAttribute("data-report-id") || "");
+    if (!id) return;
+    activeAdminStrikeReportId = id;
+    renderAdminStrikeReportsList();
+    renderAdminStrikeReportDetail();
+  });
+}
+if (btnCloseReportModal){
+  btnCloseReportModal.addEventListener("click", closeReportModal);
+}
+if (reportModalWrap){
+  reportModalWrap.addEventListener("click", (ev) => {
+    if (ev.target === reportModalWrap) closeReportModal();
+  });
+}
+if (reportImageGrid){
+  reportImageGrid.addEventListener("click", (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLElement)) return;
+    const idxAttr = t.getAttribute("data-remove-report-img");
+    if (idxAttr === null || !viewerReportDraft) return;
+    const idx = Number(idxAttr);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= (viewerReportDraft.images || []).length) return;
+    viewerReportDraft.images.splice(idx, 1);
+    renderReportImageGrid(viewerReportDraft.images);
+  });
+}
+if (reportImages){
+  reportImages.addEventListener("change", async () => {
+    if (!viewerReportDraft) return;
+    const files = Array.from(reportImages.files || []).filter((f) => f && typeof f.type === "string" && f.type.startsWith("image/"));
+    for (const f of files){
+      try{
+        const dataUrl = await fileToDataURL(f);
+        if (typeof dataUrl === "string" && dataUrl.startsWith("data:image/")){
+          viewerReportDraft.images.push(dataUrl);
+        }
+      }catch{
+        // continue
+      }
+    }
+    renderReportImageGrid(viewerReportDraft.images);
+    reportImages.value = "";
+  });
+}
+if (btnClearReportImages){
+  btnClearReportImages.addEventListener("click", () => {
+    if (!viewerReportDraft) return;
+    viewerReportDraft.images = [];
+    renderReportImageGrid(viewerReportDraft.images);
+  });
+}
+if (btnSubmitReport){
+  btnSubmitReport.addEventListener("click", async () => {
+    if (!viewerReportDraft) return;
+    const title = String(reportTitle?.value || "").trim();
+    const sourceUrl = String(reportSourceUrl?.value || "").trim();
+    const notes = String(reportNotes?.value || "").trim();
+    const date = String(reportDate?.value || "").trim();
+    const images = Array.isArray(viewerReportDraft.images) ? viewerReportDraft.images.filter((x) => typeof x === "string" && x.startsWith("data:image/")) : [];
+    if (!title || !notes || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !images.length){
+      if (reportModalErr) reportModalErr.textContent = "Title, notes, date, and at least one image are required.";
+      return;
+    }
+    viewerReportDraft.title = title;
+    viewerReportDraft.sourceUrl = sourceUrl;
+    viewerReportDraft.notes = notes;
+    viewerReportDraft.eventDate = date;
+    viewerReportDraft.images = images;
+    if (sourceUrl){
+      try{
+        const u = new URL(sourceUrl);
+        if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("bad protocol");
+      }catch{
+        if (reportModalErr) reportModalErr.textContent = "Source URL must be a valid http(s) URL.";
+        return;
+      }
+    }
+    const payload = {
+      type: "strike-report",
+      id: viewerReportDraft.id,
+      lat: viewerReportDraft.lat,
+      lng: viewerReportDraft.lng,
+      color: viewerReportDraft.color,
+      icon: viewerReportDraft.icon,
+      title: viewerReportDraft.title,
+      sourceUrl: viewerReportDraft.sourceUrl || "",
+      notes: viewerReportDraft.notes,
+      eventDate: viewerReportDraft.eventDate,
+      images: viewerReportDraft.images,
+      createdAt: viewerReportDraft.createdAt
+    };
+    if (reportModalErr) reportModalErr.textContent = "";
+    if (btnSubmitReport){
+      btnSubmitReport.disabled = true;
+      btnSubmitReport.textContent = "SUBMITTING...";
+    }
+    let submitted = false;
+    try{
+      await authRequest(STRIKE_REPORT_SUBMIT_API, "POST", payload);
+      submitted = true;
+    }catch(e){
+      // Fallback keeps reporting usable if API is temporarily unavailable.
+      upsertLocalStrikeReport({
+        ...payload,
+        status: "pending",
+        submittedAt: new Date().toISOString(),
+        source: "local",
+        createdAtTs: Date.now()
+      });
+      submitted = true;
+      setStateStatus(`report queued locally (${e?.message || e})`);
+    }finally{
+      if (btnSubmitReport){
+        btnSubmitReport.disabled = false;
+        btnSubmitReport.textContent = "SUBMIT";
+      }
+    }
+    if (!submitted){
+      if (reportModalErr) reportModalErr.textContent = "Submit failed.";
+      return;
+    }
+    addViewerReportPreviewMarker(viewerReportDraft);
+    closeReportModal();
+    viewerReportDraft = null;
+    setStateStatus("report submitted to admin review");
   });
 }
 if (btnExportViewerEmails){
@@ -3133,6 +3735,8 @@ if (adminLoginForm){
 }
 loadSecurityState();
 updateSecurityUI();
+renderViewerReportColorBar();
+setViewerReportPlacementMode(false);
 try{ viewerEmailSubmitted = sessionStorage.getItem(VIEWER_EMAIL_KEY) === "1"; }catch{ viewerEmailSubmitted = false; }
 setAdminMode(false);
 if (isLocalBypassAuthMode()){
@@ -6212,6 +6816,10 @@ function addStrikeMarker(strike){
       timelineFocusStrikeIds.clear();
       updateGroupSelectionVisuals();
     }
+    if (approvedStrikeFocusIds.has(strike.id)){
+      approvedStrikeFocusIds.delete(strike.id);
+      updateGroupSelectionVisuals();
+    }
 
     if (pathMode){
       if (!canEdit("edit flight paths")) return;
@@ -6394,6 +7002,27 @@ if (btnAddTextMode){
 
 map.on("click", (e) => {
   if (e.originalEvent?.shiftKey) return;
+  if (viewerReportPlacementMode && !isAdminMode()){
+    const iconKeyRaw = String(viewerReportIconSelect?.value || "rocket");
+    const iconKey = ["rocket", "ak47", "target", "naval"].includes(iconKeyRaw) ? iconKeyRaw : "rocket";
+    const draft = {
+      id: `viewer-report-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      lat: +e.lngLat.lat.toFixed(6),
+      lng: +e.lngLat.lng.toFixed(6),
+      color: viewerReportColor || COLOR_PRESETS[0].hex,
+      icon: iconKey,
+      sizePx: 20,
+      rotationDeg: 0,
+      eventDate: "",
+      sourceUrl: "",
+      title: "",
+      notes: "",
+      images: [],
+      createdAt: new Date().toISOString()
+    };
+    openReportModal(draft);
+    return;
+  }
   if (addTextMode){
     if (!canEdit("add a text box")) return;
     const tb = buildDefaultTextBox(e.lngLat);
@@ -6884,7 +7513,10 @@ function updateGroupSelectionVisuals(){
   for (const [id, entry] of strikeMarkers){
     const el = entry.marker.getElement();
     if (!el) continue;
-    if (selectedStrikeIds.has(id) || timelineFocusStrikeIds.has(id)){
+    if (approvedStrikeFocusIds.has(id)){
+      el.style.outline = "2px solid #ffffff";
+      el.style.outlineOffset = "2px";
+    } else if (selectedStrikeIds.has(id) || timelineFocusStrikeIds.has(id)){
       el.style.outline = "2px solid rgba(220,255,235,.95)";
       el.style.outlineOffset = "2px";
     } else {
@@ -9148,6 +9780,11 @@ window.addEventListener("keydown", (e) => {
     }
     if (modalWrap.style.display === "flex"){
       closeStrikeModal();
+      return;
+    }
+    if (reportModalWrap && reportModalWrap.style.display === "flex"){
+      closeReportModal();
+      return;
     }
     return;
   }
