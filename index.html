@@ -78,6 +78,10 @@
       transform: translateX(0) scale(1);
       pointer-events:auto;
     }
+    .crt:not(.altPageOpen) .altPage,
+    .crt:not(.altPageOpen) .altPage *{
+      pointer-events:none !important;
+    }
 
     .edgeTab{
       position:absolute;
