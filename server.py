@@ -369,9 +369,9 @@ class AppHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/login":
             body = self.read_json_body()
-            username = str(body.get("username", "")).strip()
+            username = str(body.get("username", "")).strip().lower()
             password = str(body.get("password", ""))
-            if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
+            if username != str(ADMIN_USERNAME).strip().lower() or password != ADMIN_PASSWORD:
                 self.end_json(HTTPStatus.UNAUTHORIZED, {"error": "invalid credentials"})
                 return
             prune_sessions()

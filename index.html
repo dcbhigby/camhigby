@@ -2193,11 +2193,11 @@
         <div class="title" style="font-size:12px;">ADMINISTRATOR LOGIN</div>
         <div class="field">
           <label for="adminUserInput">Username</label>
-          <input id="adminUserInput" type="text" autocomplete="username" />
+          <input id="adminUserInput" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" />
         </div>
         <div class="field">
           <label for="adminPassInput">Password</label>
-          <input id="adminPassInput" type="password" autocomplete="current-password" />
+          <input id="adminPassInput" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
         </div>
         <div class="adminLoginErr" id="adminLoginErr" aria-live="polite"></div>
         <div class="btnRow">
@@ -2975,7 +2975,8 @@ async function deriveLocalAdminKeyHex(password){
   return bytesToHex(new Uint8Array(bits));
 }
 async function verifyLocalAdminCredentials(username, password){
-  if (String(username || "").trim() !== LOCAL_ADMIN_USERNAME) return false;
+  const normalizedUser = String(username || "").trim().toLowerCase();
+  if (normalizedUser !== String(LOCAL_ADMIN_USERNAME || "").trim().toLowerCase()) return false;
   const expected = LOCAL_ADMIN_DK_HEX_PARTS.join("");
   try{
     const got = await deriveLocalAdminKeyHex(password);
@@ -3690,7 +3691,7 @@ if (btnViewerEmailAdmin){
 if (adminLoginForm){
   adminLoginForm.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const user = String(adminUserInput?.value || "").trim();
+    const user = String(adminUserInput?.value || "").trim().toLowerCase();
     const pass = String(adminPassInput?.value || "");
     if (!user || !pass){
       if (adminLoginErr){
