@@ -494,6 +494,11 @@
       height:2px;
       background: rgba(220,255,235,.5);
       box-shadow: 0 0 10px rgba(0,255,106,.12);
+      transform-origin:left center;
+    }
+    .statsTimelineRail.animIntro::before{
+      transform: scaleX(0);
+      animation: statsTimelineLineGrow .9s cubic-bezier(.2,.9,.2,1) forwards;
     }
     .statsTimeTick{
       position:absolute;
@@ -503,6 +508,11 @@
       background: rgba(220,255,235,.8);
       transform:translateX(-50%);
       pointer-events:none;
+    }
+    .statsTimeTick.intro{
+      opacity:0;
+      animation: statsTimelineTickIn .12s linear forwards;
+      animation-delay: var(--intro-delay, 0s);
     }
     .statsTimeDot{
       position:absolute;
@@ -514,6 +524,11 @@
       box-shadow: 0 0 0 2px rgba(0,255,106,.2), 0 0 10px rgba(0,255,106,.22);
       transform:translateX(-50%);
       pointer-events:none;
+    }
+    .statsTimeDot.intro{
+      opacity:0;
+      animation: statsTimelineTickIn .12s linear forwards;
+      animation-delay: var(--intro-delay, 0s);
     }
     .statsTimeCard{
       position:absolute;
@@ -536,6 +551,11 @@
       box-shadow: 0 0 12px rgba(0,255,106,.08);
       z-index:3;
       transition: left .14s ease;
+    }
+    .statsTimeCard.intro{
+      opacity:0;
+      animation: statsTimelineCardPop .34s cubic-bezier(.2,.9,.2,1) forwards;
+      animation-delay: var(--intro-delay, 0s);
     }
     .statsTimeCard.draggable{
       cursor:grab;
@@ -590,6 +610,24 @@
       white-space:nowrap;
       pointer-events:none;
       z-index:5;
+    }
+    @keyframes statsTimelineLineGrow{
+      from{ transform: scaleX(0); }
+      to{ transform: scaleX(1); }
+    }
+    @keyframes statsTimelineTickIn{
+      from{ opacity:0; }
+      to{ opacity:1; }
+    }
+    @keyframes statsTimelineCardPop{
+      0%{
+        opacity:0;
+        transform: translateX(-50%) translateY(36px) scale(.92);
+      }
+      100%{
+        opacity:1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
     }
     .statsTimelineRows{
       border:1px solid rgba(0,255,106,.18);
@@ -3229,10 +3267,12 @@ function setAltPageOpen(open){
   crtRoot.classList.toggle("altPageOpen", !!open);
   if (btnToggleStats) btnToggleStats.textContent = open ? "MAP" : "STATISTICS";
   if (open){
+    statsTimelineAnimateOnNextRender = true;
     graph1AnimateOnNextRender = true;
     graph2AnimateOnNextRender = true;
     renderChartByKey("graph1");
     renderChartByKey("graph2");
+    renderStatsTimeline();
   }
   setStateStatus(open ? "secondary page open" : "map page active");
 }
@@ -3354,6 +3394,7 @@ let statsTimelineDrag = null;
 let statsTimelineSuppressCardClick = false;
 let statsTimelineRenderedById = new Map();
 let statsTimelineSuppressClickUntil = 0;
+let statsTimelineAnimateOnNextRender = false;
 function getTimelineCardLeftPx(card){
   const raw = Number.parseFloat(String(card?.style?.left || "").replace("px",""));
   if (Number.isFinite(raw)) return raw;
@@ -4029,9 +4070,18 @@ function renderStatsTimeline(){
   }
   const requiredW = Math.max(viewportW, Math.round(cursorX + endPad));
   statsTimelineRail.style.width = `${requiredW}px`;
+  const animateIntro = !!statsTimelineAnimateOnNextRender;
+  statsTimelineAnimateOnNextRender = false;
+  if (animateIntro){
+    statsTimelineRail.classList.add("animIntro");
+    setTimeout(() => statsTimelineRail.classList.remove("animIntro"), 1400);
+  } else {
+    statsTimelineRail.classList.remove("animIntro");
+  }
   const usableStartX = startPad;
   const usableEndX = Math.max(usableStartX + 1, requiredW - endPad);
   const usableSpanX = Math.max(1, usableEndX - usableStartX);
+  const lineGrowSec = 0.9;
 
   laidOut.forEach(({ e, x }) => {
     statsTimelineRenderedById.set(String(e?.id || ""), e);
@@ -4044,10 +4094,20 @@ function renderStatsTimeline(){
     const tick = document.createElement("div");
     tick.className = "statsTimeTick";
     tick.style.left = left;
+    if (animateIntro){
+      const delaySec = Math.max(0, Math.min(lineGrowSec + 0.25, (Math.round(px) / Math.max(1, requiredW)) * lineGrowSec));
+      tick.classList.add("intro");
+      tick.style.setProperty("--intro-delay", `${delaySec.toFixed(3)}s`);
+    }
     statsTimelineRail.appendChild(tick);
     const dot = document.createElement("div");
     dot.className = "statsTimeDot";
     dot.style.left = left;
+    if (animateIntro){
+      const delaySec = Math.max(0, Math.min(lineGrowSec + 0.25, (Math.round(px) / Math.max(1, requiredW)) * lineGrowSec));
+      dot.classList.add("intro");
+      dot.style.setProperty("--intro-delay", `${delaySec.toFixed(3)}s`);
+    }
     statsTimelineRail.appendChild(dot);
     const card = document.createElement("div");
     card.className = "statsTimeCard";
@@ -4055,6 +4115,11 @@ function renderStatsTimeline(){
     card.style.setProperty("--timeline-card-border", getTimelineBorderGradientForEvent(e));
     card.setAttribute("data-event-id", String(e.id || ""));
     card.classList.add("draggable");
+    if (animateIntro){
+      const delaySec = Math.max(0.03, Math.min(lineGrowSec + 0.3, (Math.round(px) / Math.max(1, requiredW)) * lineGrowSec + 0.03));
+      card.classList.add("intro");
+      card.style.setProperty("--intro-delay", `${delaySec.toFixed(3)}s`);
+    }
     if (e.strikeId || (Array.isArray(e.groupStrikeIds) && e.groupStrikeIds.length)){
       card.classList.add("linked");
       if (e.strikeId) card.setAttribute("data-strike-id", e.strikeId);
