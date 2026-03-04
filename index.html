@@ -280,6 +280,7 @@
       overflow:hidden;
       min-height: 360px;
       cursor:grab;
+      touch-action:none;
     }
     .nodeViewport.addMode{ cursor:crosshair; }
     .nodeViewport.panning{ cursor:grabbing; }
@@ -315,6 +316,7 @@
       font-size:10px;
       line-height:1.2;
       overflow:hidden;
+      touch-action:none;
     }
     .nodeItem.selected{
       border-color: rgba(220,255,235,.95);
@@ -406,6 +408,22 @@
       opacity:.75;
       line-height:1.4;
     }
+    .orgImgTools{
+      border:1px solid rgba(0,255,106,.2);
+      border-radius:10px;
+      background: rgba(0,10,5,.35);
+      padding:8px;
+      display:none;
+      gap:8px;
+    }
+    .orgImgTools.show{ display:grid; }
+    .orgImgTools .hint{ font-size:10px; opacity:.82; line-height:1.35; }
+    .orgImgTools .miniRow{
+      display:grid;
+      grid-template-columns: 96px 1fr 54px;
+      gap:8px;
+      align-items:center;
+    }
     .orgLayout{
       display:grid;
       grid-template-columns: 2.1fr 1fr;
@@ -423,7 +441,10 @@
       align-items:start;
       justify-content:center;
     }
-    .tier-1{ grid-template-columns: minmax(280px, 460px); }
+    .tier-1{
+      width:100%;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
     .tier-2{ grid-template-columns: repeat(2, minmax(220px, 1fr)); }
     .tier-3{ grid-template-columns: repeat(3, minmax(200px, 1fr)); }
     .tier-branches{ grid-template-columns: repeat(3, minmax(200px, 1fr)); }
@@ -469,7 +490,9 @@
     }
     .orgImgBox{
       width:100%;
-      height:86px;
+      aspect-ratio:4 / 5;
+      min-height:92px;
+      max-height:200px;
       border:1px dashed rgba(220,255,235,.34);
       border-radius:8px;
       background: rgba(0,0,0,.28);
@@ -484,11 +507,17 @@
     .orgImgBox.admin{
       cursor:copy;
     }
+    .orgImgBox.selected{
+      border-color: rgba(220,255,235,.85);
+      box-shadow: 0 0 0 1px rgba(220,255,235,.45), 0 0 12px rgba(0,255,106,.22);
+    }
     .orgImgBox img{
       width:100%;
       height:100%;
       object-fit:cover;
       display:block;
+      transform-origin: 50% 50%;
+      transform: scale(1);
     }
     .orgImgPh{
       font-size:10px;
@@ -522,17 +551,28 @@
       padding:1px 2px;
       background: rgba(0,0,0,.4);
     }
-    .orgKilled{
+    .orgStatus{
       display:inline-flex;
       margin-top:4px;
       font-size:10px;
       padding:3px 7px;
       border-radius:999px;
-      background:#b31326;
       color:#fff;
       font-weight:700;
       letter-spacing:.04em;
       width:max-content;
+      border:none;
+      line-height:1;
+      user-select:none;
+      pointer-events:none;
+      opacity:.92;
+    }
+    .orgStatus.dead{ background:#b31326; }
+    .orgStatus.alive{ background:#1f8a36; }
+    .orgStatus.admin{
+      pointer-events:auto;
+      cursor:pointer;
+      box-shadow: 0 0 10px rgba(0,0,0,.2);
     }
     .orgSmall{ font-size:10px; opacity:.8; line-height:1.35; }
     .orgSide{
@@ -1029,6 +1069,31 @@
       transform: rotate(var(--rot, 0deg)) scale(var(--scale, 1));
       transform-origin: center;
     }
+    .mapTextBox{
+      max-width: 280px;
+      min-width: 36px;
+      pointer-events:auto;
+      border:1px solid rgba(220,255,235,.26);
+      border-radius:8px;
+      padding:6px 8px;
+      background: rgba(0,20,10,.38);
+      color:#eafff1;
+      font-size:16px;
+      line-height:1.2;
+      box-shadow: 0 0 10px rgba(0,255,106,.14);
+      white-space: pre-wrap;
+      word-break: break-word;
+      user-select:none;
+      transition: opacity .18s linear;
+      transform: translate(-50%, -50%);
+    }
+    .mapTextBox.admin{
+      cursor:pointer;
+      user-select:text;
+    }
+    .mapTextBox .txt{
+      display:block;
+    }
     .strikeIcon{ position:relative; width:var(--base,44px); height:var(--base,44px); color:inherit; }
     .strikeIcon svg{ width:100%; height:100%; display:block; overflow:visible; }
     .strikeSplit{ position:relative; width:100%; height:100%; }
@@ -1271,7 +1336,7 @@
         padding-left:0;
         padding-top:10px;
       }
-      .tier-1{ grid-template-columns:1fr; }
+      .tier-1{ grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
       .tier-2{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .tier-3{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .tier-branches{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1283,13 +1348,14 @@
         min-height:46px;
       }
       .orgImgBox{
-        height:58px;
+        min-height:70px;
+        max-height:140px;
         border-radius:6px;
       }
       .orgName{ font-size:11px; }
       .orgRole{ font-size:9px; line-height:1.2; }
       .orgSmall{ font-size:8px; line-height:1.25; }
-      .orgKilled{ font-size:8px; padding:2px 5px; }
+      .orgStatus{ font-size:8px; padding:2px 5px; }
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -1413,11 +1479,44 @@
         <div class="orgChartWrap" id="iranOrgChart">
           <div class="orgChartTitle">Iranian Military Org Chart</div>
           <div class="orgChartNote">Building on the work of Reuters</div>
+          <div class="orgImgTools" id="orgImgTools">
+            <div class="hint" id="orgImgTargetLabel">Select a photo slot to adjust headshot zoom/position.</div>
+            <div class="miniRow">
+              <label for="orgRowTarget">Add Card To Row</label>
+              <select id="orgRowTarget">
+                <option value="tier1">Top Leadership</option>
+                <option value="tier2_command">Security / Defence Council</option>
+                <option value="tier2_leadership">Senior Leadership</option>
+                <option value="tier3_ops">Operational Leaders</option>
+                <option value="tier_branches">Service Branches</option>
+                <option value="side_figures">Side Column</option>
+              </select>
+            </div>
+            <div class="btnRow">
+              <button id="btnOrgAddCard" class="ghost">ADD CARD</button>
+              <button id="btnOrgDeleteCard" class="danger">DELETE SELECTED</button>
+            </div>
+            <div class="miniRow">
+              <label for="orgImgZoom">Zoom</label>
+              <input id="orgImgZoom" type="range" min="0.25" max="3.5" step="0.05" value="1" />
+              <div class="rangeVal" id="orgImgZoomVal">1.00x</div>
+            </div>
+            <div class="miniRow">
+              <label for="orgImgPosX">Position X</label>
+              <input id="orgImgPosX" type="range" min="0" max="100" step="1" value="50" />
+              <div class="rangeVal" id="orgImgPosXVal">50%</div>
+            </div>
+            <div class="miniRow">
+              <label for="orgImgPosY">Position Y</label>
+              <input id="orgImgPosY" type="range" min="0" max="100" step="1" value="50" />
+              <div class="rangeVal" id="orgImgPosYVal">50%</div>
+            </div>
+          </div>
           <div class="orgChartViewport">
           <div class="orgLayout">
             <div class="orgMain">
               <div class="orgTree">
-                <div class="orgTier tier-1">
+                <div class="orgTier tier-1" data-org-row="tier1">
                   <div class="orgNode" data-org-id="khamenei">
                     <div class="orgName orgEditable">Ali Khamenei</div>
                     <div class="orgRole orgEditable">Supreme Leader, Commander-in-Chief</div>
@@ -1425,7 +1524,7 @@
                   </div>
                 </div>
                 <div class="orgLineDown" aria-hidden="true"></div>
-                <div class="orgTier tier-2 branch">
+                <div class="orgTier tier-2 branch" data-org-row="tier2_command">
                   <div class="orgNode unit" data-org-id="security_forces">
                     <div class="orgName orgEditable">Security Forces</div>
                     <div class="orgSmall orgEditable">Primary command channel</div>
@@ -1439,7 +1538,7 @@
                   <div class="orgLineDown" aria-hidden="true"></div>
                   <div class="orgLineDown" aria-hidden="true"></div>
                 </div>
-                <div class="orgTier tier-2 branch">
+                <div class="orgTier tier-2 branch" data-org-row="tier2_leadership">
                   <div class="orgNode" data-org-id="mousavi">
                     <div class="orgName orgEditable">Abdolrahim Mousavi</div>
                     <div class="orgRole orgEditable">Chief of Staff (1)</div>
@@ -1452,7 +1551,7 @@
                   </div>
                 </div>
                 <div class="orgLineDown" aria-hidden="true"></div>
-                <div class="orgTier tier-3 branch">
+                <div class="orgTier tier-3 branch" data-org-row="tier3_ops">
                   <div class="orgNode" data-org-id="gharaei_ashtiani">
                     <div class="orgName orgEditable">Mohammed-Reza Gharaei Ashtiani</div>
                     <div class="orgRole orgEditable">Deputy Chief of Staff</div>
@@ -1468,7 +1567,7 @@
                   </div>
                 </div>
                 <div class="orgLineDown" aria-hidden="true"></div>
-                <div class="orgTier tier-branches branch">
+                <div class="orgTier tier-branches branch" data-org-row="tier_branches">
                   <div class="orgNode" data-org-id="artesh">
                     <div class="orgName orgEditable">Artesh</div>
                     <div class="orgRole orgEditable">Iran’s General Armed Forces</div>
@@ -1488,7 +1587,7 @@
                 </div>
               </div>
             </div>
-            <div class="orgSide">
+            <div class="orgSide" data-org-row="side_figures">
               <div class="orgSideTitle">Other key figures killed</div>
               <div class="orgNode" data-org-id="shirazi">
                 <div class="orgName orgEditable">Mohammad Shirazi</div>
@@ -1581,6 +1680,7 @@
           <div class="badge" id="securityBadge">SECURITY: OFF</div>
           <button id="btnSearch">JUMP</button>
           <button id="btnAddMode" class="ghost">ADD STRIKE: OFF</button>
+          <button id="btnAddTextMode" class="ghost">ADD TEXT: OFF</button>
 
           <button id="btnPathMode" class="ghost" title="Option+click a FROM strike to lock; then click TO strikes">ADD PATH: OFF</button>
           <div class="badge" id="pathFromBadge" title="Option+click a strike to lock FROM">FROM: —</div>
@@ -1765,6 +1865,67 @@
     </div>
 
     <div id="imgLightbox" title="Click to close"><img id="imgLightboxImg" alt="Full image preview" /></div>
+    <div class="modalWrap" id="textModalWrap" role="dialog" aria-modal="true" aria-label="Text box details">
+      <div class="modal">
+        <div class="modalHead">
+          <div class="title" style="font-size:11px;">MAP TEXT BOX</div>
+          <button id="btnCloseTextModal" class="ghost">CLOSE</button>
+        </div>
+        <div class="modalBody">
+          <div class="row3">
+            <div class="field"><label for="textModalLat">Latitude</label><input id="textModalLat" type="text" readonly /></div>
+            <div class="field"><label for="textModalLng">Longitude</label><input id="textModalLng" type="text" readonly /></div>
+            <div class="field"><label for="textModalCreated">Created</label><input id="textModalCreated" type="text" readonly /></div>
+          </div>
+          <div class="field"><label for="textModalContent">Text</label><textarea id="textModalContent" placeholder="Type label text"></textarea></div>
+          <div class="row3">
+            <div class="field"><label for="textModalColor">Text color</label><input id="textModalColor" type="color" value="#eafff1" /></div>
+            <div class="field"><label for="textModalBgColor">Background color</label><input id="textModalBgColor" type="color" value="#001409" /></div>
+            <div class="field">
+              <label for="textModalBgOpacity">Background opacity</label>
+              <div class="rangeRow">
+                <input id="textModalBgOpacity" type="range" min="0" max="100" step="1" value="38" />
+                <div class="rangeVal" id="textModalBgOpacityVal">38%</div>
+              </div>
+            </div>
+          </div>
+          <div class="row3">
+            <div class="field">
+              <label for="textModalSize">Text size</label>
+              <div class="rangeRow">
+                <input id="textModalSize" type="range" min="10" max="44" step="1" value="16" />
+                <div class="rangeVal" id="textModalSizeVal">16px</div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="textModalMinZoom">Fade-in zoom</label>
+              <div class="rangeRow">
+                <input id="textModalMinZoom" type="range" min="0.5" max="20" step="0.1" value="2.5" />
+                <div class="rangeVal" id="textModalMinZoomVal">2.5</div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="textModalMaxZoom">Fade-out zoom</label>
+              <div class="rangeRow">
+                <input id="textModalMaxZoom" type="range" min="0.5" max="20" step="0.1" value="20" />
+                <div class="rangeVal" id="textModalMaxZoomVal">20.0</div>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="textModalEdgeFade">Edge fade zone</label>
+            <div class="rangeRow">
+              <input id="textModalEdgeFade" type="range" min="20" max="260" step="5" value="120" />
+              <div class="rangeVal" id="textModalEdgeFadeVal">120px</div>
+            </div>
+          </div>
+          <div class="btnRow" id="textModalActions">
+            <button id="btnSaveTextBox">SAVE</button>
+            <button id="btnDeleteTextBox" class="danger">DELETE</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="groupPopup" id="groupPopup">
       <div class="head">
         <div class="badge" id="popupSelectCount">SELECTED: 0</div>
@@ -2336,6 +2497,7 @@ function applyAccessMode(){
     scheduleViewerEmailGate();
   }
   setOrgBoxAdminState();
+  setTextBoxesAdminState();
   setStateStatus(admin ? "administrator mode active" : "viewer mode active (read only)");
 }
 function closeAdminLoginPage(){
@@ -3654,7 +3816,6 @@ if (nodeViewport) nodeViewport.addEventListener("click", (ev) => {
   showNodeTypePopup(sx, sy, p.x, p.y);
 });
 if (nodeViewport) nodeViewport.addEventListener("mousedown", (ev) => {
-  if (PUBLIC_VIEW_MODE) return;
   if (barChartsState.active !== "graph3") return;
   const target = ev.target;
   if (!(target instanceof HTMLElement)) return;
@@ -3670,6 +3831,30 @@ if (nodeViewport) nodeViewport.addEventListener("mousedown", (ev) => {
   };
   hideNodeTypePopup();
 });
+function getTouchPoint(ev){
+  const t = ev.touches?.[0] || ev.changedTouches?.[0];
+  if (!t) return null;
+  return { clientX: t.clientX, clientY: t.clientY };
+}
+if (nodeViewport) nodeViewport.addEventListener("touchstart", (ev) => {
+  if (barChartsState.active !== "graph3") return;
+  const t = getTouchPoint(ev);
+  if (!t) return;
+  const target = ev.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.closest("#nodeTypePopup")) return;
+  if (target.closest(".nodeItem")) return;
+  const rect = nodeViewport.getBoundingClientRect();
+  nodePanDrag = {
+    startX: t.clientX - rect.left,
+    startY: t.clientY - rect.top,
+    startOffsetX: graph3State.view.offsetX,
+    startOffsetY: graph3State.view.offsetY,
+    moved: false
+  };
+  hideNodeTypePopup();
+  ev.preventDefault();
+}, { passive:false });
 if (nodeLayer) nodeLayer.addEventListener("mousedown", (ev) => {
   if (PUBLIC_VIEW_MODE) return;
   if (barChartsState.active !== "graph3") return;
@@ -3707,23 +3892,46 @@ if (nodeLayer) nodeLayer.addEventListener("mousedown", (ev) => {
   const world = graph3ScreenToWorld(sx, sy);
   nodeDrag = { id: nodeId, dx: node.x - world.x, dy: node.y - world.y };
 });
-window.addEventListener("mousemove", (ev) => {
+if (nodeLayer) nodeLayer.addEventListener("touchstart", (ev) => {
+  if (PUBLIC_VIEW_MODE) return;
+  if (barChartsState.active !== "graph3") return;
+  if (nodeConnectMode) return;
+  const t = getTouchPoint(ev);
+  if (!t) return;
+  const target = ev.target;
+  if (!(target instanceof HTMLElement)) return;
+  const nodeId = target.closest(".nodeItem")?.getAttribute("data-node-id");
+  if (!nodeId) return;
+  const node = graph3State.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+  selectedNodeId = nodeId;
+  hideNodeTypePopup();
+  nodeSuppressClick = true;
+  renderGraph3();
+  const rect = nodeViewport.getBoundingClientRect();
+  const sx = t.clientX - rect.left;
+  const sy = t.clientY - rect.top;
+  const world = graph3ScreenToWorld(sx, sy);
+  nodeDrag = { id: nodeId, dx: node.x - world.x, dy: node.y - world.y };
+  ev.preventDefault();
+}, { passive:false });
+function moveNodeDragAtClient(clientX, clientY){
   if (!nodeDrag) return;
   const node = graph3State.nodes.find(n => n.id === nodeDrag.id);
   if (!node || !nodeViewport) return;
   const rect = nodeViewport.getBoundingClientRect();
-  const sx = ev.clientX - rect.left;
-  const sy = ev.clientY - rect.top;
+  const sx = clientX - rect.left;
+  const sy = clientY - rect.top;
   const world = graph3ScreenToWorld(sx, sy);
   node.x = world.x + nodeDrag.dx;
   node.y = world.y + nodeDrag.dy;
   renderGraph3();
-});
-window.addEventListener("mousemove", (ev) => {
+}
+function moveNodePanAtClient(clientX, clientY){
   if (!nodePanDrag || !nodeViewport) return;
   const rect = nodeViewport.getBoundingClientRect();
-  const x = ev.clientX - rect.left;
-  const y = ev.clientY - rect.top;
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
   const dx = x - nodePanDrag.startX;
   const dy = y - nodePanDrag.startY;
   graph3State.view.offsetX = nodePanDrag.startOffsetX + dx;
@@ -3733,7 +3941,22 @@ window.addEventListener("mousemove", (ev) => {
     nodeViewport.classList.add("panning");
   }
   renderGraph3();
+}
+window.addEventListener("mousemove", (ev) => {
+  moveNodeDragAtClient(ev.clientX, ev.clientY);
 });
+window.addEventListener("mousemove", (ev) => {
+  moveNodePanAtClient(ev.clientX, ev.clientY);
+});
+window.addEventListener("touchmove", (ev) => {
+  const t = getTouchPoint(ev);
+  if (!t) return;
+  if (nodeDrag || nodePanDrag){
+    ev.preventDefault();
+  }
+  moveNodeDragAtClient(t.clientX, t.clientY);
+  moveNodePanAtClient(t.clientX, t.clientY);
+}, { passive:false });
 window.addEventListener("mouseup", () => {
   if (!nodeDrag) return;
   nodeDrag = null;
@@ -3745,6 +3968,18 @@ window.addEventListener("mouseup", () => {
   nodePanDrag = null;
   nodeViewport?.classList.remove("panning");
   autosaveLocal();
+});
+window.addEventListener("touchend", () => {
+  if (nodeDrag){
+    nodeDrag = null;
+    autosaveLocal();
+  }
+  if (nodePanDrag){
+    if (nodePanDrag.moved) nodeSuppressClick = true;
+    nodePanDrag = null;
+    nodeViewport?.classList.remove("panning");
+    autosaveLocal();
+  }
 });
 if (nodeLayer) nodeLayer.addEventListener("dragover", (ev) => {
   if (PUBLIC_VIEW_MODE) return;
@@ -3864,6 +4099,243 @@ let boxSelectRectEl = null;
 function updateStrikeCount(){
   document.getElementById("strikeCount").textContent = `STRIKES: ${strikes.length}`;
 }
+
+/************ MAP TEXT BOXES ************/
+var textBoxes = [];
+var textBoxMarkers = new Map();
+var addTextMode = false;
+var activeTextBoxId = null;
+var textModalSnapshotBeforeEdit = null;
+var btnAddTextMode = document.getElementById("btnAddTextMode");
+var textModalWrap = document.getElementById("textModalWrap");
+var textModalLat = document.getElementById("textModalLat");
+var textModalLng = document.getElementById("textModalLng");
+var textModalCreated = document.getElementById("textModalCreated");
+var textModalContent = document.getElementById("textModalContent");
+var textModalColor = document.getElementById("textModalColor");
+var textModalBgColor = document.getElementById("textModalBgColor");
+var textModalBgOpacity = document.getElementById("textModalBgOpacity");
+var textModalBgOpacityVal = document.getElementById("textModalBgOpacityVal");
+var textModalSize = document.getElementById("textModalSize");
+var textModalSizeVal = document.getElementById("textModalSizeVal");
+var textModalMinZoom = document.getElementById("textModalMinZoom");
+var textModalMinZoomVal = document.getElementById("textModalMinZoomVal");
+var textModalMaxZoom = document.getElementById("textModalMaxZoom");
+var textModalMaxZoomVal = document.getElementById("textModalMaxZoomVal");
+var textModalEdgeFade = document.getElementById("textModalEdgeFade");
+var textModalEdgeFadeVal = document.getElementById("textModalEdgeFadeVal");
+var btnSaveTextBox = document.getElementById("btnSaveTextBox");
+var btnDeleteTextBox = document.getElementById("btnDeleteTextBox");
+var textModalActions = document.getElementById("textModalActions");
+
+function clampZoomLevel(v){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return map.getZoom();
+  return Math.max(0.5, Math.min(20, +n.toFixed(1)));
+}
+function clampTextBgOpacity(v){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0.38;
+  return Math.max(0, Math.min(1, n));
+}
+function hexToRgba(hex, alpha){
+  const h = String(hex || "").trim().replace("#", "");
+  const a = clampTextBgOpacity(alpha);
+  if (!/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(h)) return `rgba(0,20,10,${a})`;
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function buildDefaultTextBox(lngLat){
+  return {
+    id: cryptoRandomId(),
+    lat: +Number(lngLat?.lat || 0).toFixed(6),
+    lng: +Number(lngLat?.lng || 0).toFixed(6),
+    text: "New text box",
+    color: "#eafff1",
+    bgColor: "#001409",
+    bgOpacity: 0.38,
+    sizePx: 16,
+    minZoom: 2.5,
+    maxZoom: 20,
+    edgeFadePx: 120,
+    createdAt: new Date().toISOString()
+  };
+}
+function sanitizeTextBox(tb){
+  const out = {
+    id: tb?.id || cryptoRandomId(),
+    lat: Number.isFinite(+tb?.lat) ? +(+tb.lat).toFixed(6) : 0,
+    lng: Number.isFinite(+tb?.lng) ? +(+tb.lng).toFixed(6) : 0,
+    text: typeof tb?.text === "string" ? tb.text.slice(0, 1000) : "",
+    color: (typeof tb?.color === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(tb.color)) ? tb.color : "#eafff1",
+    bgColor: (typeof tb?.bgColor === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(tb.bgColor)) ? tb.bgColor : "#001409",
+    bgOpacity: clampTextBgOpacity(Number(tb?.bgOpacity)),
+    sizePx: Number.isFinite(+tb?.sizePx) ? Math.max(10, Math.min(44, Math.round(+tb.sizePx))) : 16,
+    minZoom: clampZoomLevel(tb?.minZoom),
+    maxZoom: clampZoomLevel(tb?.maxZoom),
+    edgeFadePx: Number.isFinite(+tb?.edgeFadePx) ? Math.max(20, Math.min(260, Math.round(+tb.edgeFadePx))) : 120,
+    createdAt: tb?.createdAt || new Date().toISOString()
+  };
+  if (out.maxZoom < out.minZoom){
+    const t = out.maxZoom;
+    out.maxZoom = out.minZoom;
+    out.minZoom = t;
+  }
+  return out;
+}
+function makeTextBoxEl(tb){
+  const el = document.createElement("div");
+  el.className = "mapTextBox";
+  const span = document.createElement("span");
+  span.className = "txt";
+  span.textContent = tb?.text || "";
+  el.appendChild(span);
+  return el;
+}
+function computeTextBoxOpacity(tb){
+  const z = map.getZoom();
+  const minZ = Number(tb?.minZoom ?? 0.5);
+  const maxZ = Number(tb?.maxZoom ?? 20);
+  const band = 0.45;
+  let zoomOpacity = 1;
+  if (z < minZ - band || z > maxZ + band) zoomOpacity = 0;
+  else if (z < minZ) zoomOpacity = (z - (minZ - band)) / band;
+  else if (z > maxZ) zoomOpacity = ((maxZ + band) - z) / band;
+  zoomOpacity = Math.max(0, Math.min(1, zoomOpacity));
+
+  const pt = map.project([tb.lng, tb.lat]);
+  const w = map.getCanvas().clientWidth || window.innerWidth || 1;
+  const h = map.getCanvas().clientHeight || window.innerHeight || 1;
+  const edgeDist = Math.min(pt.x, pt.y, w - pt.x, h - pt.y);
+  const fadePx = Math.max(20, Number(tb?.edgeFadePx) || 120);
+  const edgeOpacity = edgeDist <= 0 ? 0 : Math.max(0, Math.min(1, edgeDist / fadePx));
+  return Math.max(0, Math.min(1, zoomOpacity * edgeOpacity));
+}
+function applyTextBoxVisual(tb, entry){
+  if (!entry?.el) return;
+  const el = entry.el;
+  const txt = el.querySelector(".txt");
+  if (txt) txt.textContent = tb.text || "";
+  el.style.color = tb.color || "#eafff1";
+  el.style.background = hexToRgba(tb.bgColor || "#001409", tb.bgOpacity);
+  el.style.fontSize = `${Math.max(10, Math.min(44, Number(tb.sizePx) || 16))}px`;
+  el.style.opacity = String(computeTextBoxOpacity(tb));
+  el.classList.toggle("admin", isAdminMode());
+}
+function refreshTextBoxOpacities(){
+  for (const [id, entry] of textBoxMarkers){
+    const tb = textBoxes.find((x) => x.id === id);
+    if (!tb) continue;
+    applyTextBoxVisual(tb, entry);
+  }
+}
+function setTextBoxesAdminState(){
+  if (!textBoxMarkers) return;
+  const admin = isAdminMode();
+  if (btnAddTextMode){
+    btnAddTextMode.style.display = admin ? "" : "none";
+    if (!admin){
+      addTextMode = false;
+      btnAddTextMode.textContent = "ADD TEXT: OFF";
+      btnAddTextMode.classList.add("ghost");
+    }
+  }
+  for (const [, entry] of textBoxMarkers){
+    try{ entry.marker.setDraggable(!!admin); }catch{}
+    entry.el.classList.toggle("admin", admin);
+  }
+  if (!admin) closeTextBoxModal();
+}
+function addTextBoxMarker(tb){
+  const el = makeTextBoxEl(tb);
+  const marker = new maplibregl.Marker({ element: el, anchor:"center", draggable: isAdminMode() })
+    .setLngLat([tb.lng, tb.lat])
+    .addTo(map);
+  const openEditor = (ev) => {
+    ev.stopPropagation();
+    if (!isAdminMode()) return;
+    openTextBoxModal(tb.id, { isNew: false });
+  };
+  el.addEventListener("click", openEditor);
+  marker.on("dragend", () => {
+    const pos = marker.getLngLat();
+    const item = textBoxes.find((x) => x.id === tb.id);
+    if (!item) return;
+    item.lat = +pos.lat.toFixed(6);
+    item.lng = +pos.lng.toFixed(6);
+    if (activeTextBoxId === item.id){
+      textModalLat.value = String(item.lat);
+      textModalLng.value = String(item.lng);
+    }
+    autosaveLocal();
+  });
+  const entry = { marker, data: tb, el };
+  textBoxMarkers.set(tb.id, entry);
+  applyTextBoxVisual(tb, entry);
+}
+function removeTextBoxMarker(id){
+  const entry = textBoxMarkers.get(id);
+  if (!entry) return;
+  entry.marker.remove();
+  textBoxMarkers.delete(id);
+}
+function renderTextBoxes(){
+  for (const [id] of textBoxMarkers) removeTextBoxMarker(id);
+  for (const tb of textBoxes) addTextBoxMarker(tb);
+  refreshTextBoxOpacities();
+}
+function closeTextBoxModal(){
+  if (!textModalWrap) return;
+  textModalWrap.style.display = "none";
+  activeTextBoxId = null;
+  textModalSnapshotBeforeEdit = null;
+}
+function setTextModalReadOnly(readOnly){
+  const ro = !!readOnly;
+  textModalContent.readOnly = ro;
+  textModalColor.disabled = ro;
+  textModalBgColor.disabled = ro;
+  textModalBgOpacity.disabled = ro;
+  textModalSize.disabled = ro;
+  textModalMinZoom.disabled = ro;
+  textModalMaxZoom.disabled = ro;
+  textModalEdgeFade.disabled = ro;
+  if (textModalActions) textModalActions.style.display = ro ? "none" : "";
+}
+function syncTextModalRanges(){
+  textModalBgOpacityVal.textContent = `${Math.round((Number(textModalBgOpacity.value) || 0) * 100)}%`;
+  textModalSizeVal.textContent = `${Math.round(Number(textModalSize.value) || 16)}px`;
+  textModalMinZoomVal.textContent = `${(Number(textModalMinZoom.value) || 2.5).toFixed(1)}`;
+  textModalMaxZoomVal.textContent = `${(Number(textModalMaxZoom.value) || 20).toFixed(1)}`;
+  textModalEdgeFadeVal.textContent = `${Math.round(Number(textModalEdgeFade.value) || 120)}px`;
+}
+function openTextBoxModal(id, opts = {}){
+  const tb = textBoxes.find((x) => x.id === id);
+  if (!tb || !textModalWrap) return;
+  activeTextBoxId = id;
+  textModalSnapshotBeforeEdit = deepClone(tb);
+  textModalLat.value = String(tb.lat);
+  textModalLng.value = String(tb.lng);
+  textModalCreated.value = (tb.createdAt || "").replace("T"," ").replace("Z"," UTC");
+  textModalContent.value = tb.text || "";
+  textModalColor.value = tb.color || "#eafff1";
+  textModalBgColor.value = tb.bgColor || "#001409";
+  textModalBgOpacity.value = String(clampTextBgOpacity(tb.bgOpacity));
+  textModalSize.value = String(Math.max(10, Math.min(44, Number(tb.sizePx) || 16)));
+  textModalMinZoom.value = String(clampZoomLevel(tb.minZoom));
+  textModalMaxZoom.value = String(clampZoomLevel(tb.maxZoom));
+  textModalEdgeFade.value = String(Math.max(20, Math.min(260, Number(tb.edgeFadePx) || 120)));
+  syncTextModalRanges();
+  setTextModalReadOnly(PUBLIC_VIEW_MODE);
+  textModalWrap.style.display = "flex";
+  if (!PUBLIC_VIEW_MODE && opts?.isNew){
+    requestAnimationFrame(() => textModalContent.focus());
+  }
+}
+setTextBoxesAdminState();
 
 /* hover + mouse location tracking for ⌘C/⌘V */
 let hoveredStrikeId = null;
@@ -4507,18 +4979,49 @@ window.addEventListener("mouseup", endDragging);
 map.on("zoom", () => {
   updateTargetIconScaling();
   applyFlightOpacity();
+  refreshTextBoxOpacities();
 });
+map.on("move", refreshTextBoxOpacities);
 
 /************ ADD MODE ************/
 btnAddMode.addEventListener("click", () => {
   if (!canEdit("toggle add strike mode")) return;
   addMode = !addMode;
+  if (addMode && addTextMode){
+    addTextMode = false;
+    if (btnAddTextMode){
+      btnAddTextMode.textContent = "ADD TEXT: OFF";
+      btnAddTextMode.classList.add("ghost");
+    }
+  }
   btnAddMode.textContent = addMode ? "ADD STRIKE: ON" : "ADD STRIKE: OFF";
   btnAddMode.classList.toggle("ghost", !addMode);
 });
+if (btnAddTextMode){
+  btnAddTextMode.addEventListener("click", () => {
+    if (!canEdit("toggle add text mode")) return;
+    addTextMode = !addTextMode;
+    if (addTextMode && addMode){
+      addMode = false;
+      btnAddMode.textContent = "ADD STRIKE: OFF";
+      btnAddMode.classList.add("ghost");
+    }
+    btnAddTextMode.textContent = addTextMode ? "ADD TEXT: ON" : "ADD TEXT: OFF";
+    btnAddTextMode.classList.toggle("ghost", !addTextMode);
+  });
+}
 
 map.on("click", (e) => {
   if (e.originalEvent?.shiftKey) return;
+  if (addTextMode){
+    if (!canEdit("add a text box")) return;
+    const tb = buildDefaultTextBox(e.lngLat);
+    textBoxes.unshift(tb);
+    renderTextBoxes();
+    autosaveLocal();
+    openTextBoxModal(tb.id, { isNew: true });
+    return;
+  }
   if (!addMode) return;
   if (!canEdit("add a strike")) return;
 
@@ -5152,6 +5655,57 @@ function closeStrikeModal(){
 }
 document.getElementById("btnCloseModal").addEventListener("click", closeStrikeModal);
 modalWrap.addEventListener("click", (e) => { if (e.target === modalWrap) closeStrikeModal(); });
+if (textModalWrap){
+  document.getElementById("btnCloseTextModal")?.addEventListener("click", closeTextBoxModal);
+  textModalWrap.addEventListener("click", (e) => {
+    if (e.target === textModalWrap) closeTextBoxModal();
+  });
+}
+if (textModalBgOpacity) textModalBgOpacity.addEventListener("input", syncTextModalRanges);
+if (textModalSize) textModalSize.addEventListener("input", syncTextModalRanges);
+if (textModalMinZoom) textModalMinZoom.addEventListener("input", syncTextModalRanges);
+if (textModalMaxZoom) textModalMaxZoom.addEventListener("input", syncTextModalRanges);
+if (textModalEdgeFade) textModalEdgeFade.addEventListener("input", syncTextModalRanges);
+if (btnSaveTextBox){
+  btnSaveTextBox.addEventListener("click", () => {
+    if (!canEdit("save text box changes")) return;
+    const tb = textBoxes.find((x) => x.id === activeTextBoxId);
+    if (!tb) return;
+    const before = textModalSnapshotBeforeEdit ? deepClone(textModalSnapshotBeforeEdit) : deepClone(tb);
+    tb.text = (textModalContent.value || "").slice(0, 1000);
+    tb.color = textModalColor.value || "#eafff1";
+    tb.bgColor = textModalBgColor.value || "#001409";
+    tb.bgOpacity = clampTextBgOpacity(textModalBgOpacity.value);
+    tb.sizePx = Math.max(10, Math.min(44, Math.round(Number(textModalSize.value) || 16)));
+    tb.minZoom = clampZoomLevel(textModalMinZoom.value);
+    tb.maxZoom = clampZoomLevel(textModalMaxZoom.value);
+    if (tb.maxZoom < tb.minZoom) tb.maxZoom = tb.minZoom;
+    tb.edgeFadePx = Math.max(20, Math.min(260, Math.round(Number(textModalEdgeFade.value) || 120)));
+    const after = deepClone(tb);
+    pushUndo({ type:"edit_text_box", before, after });
+    const entry = textBoxMarkers.get(tb.id);
+    if (entry){
+      entry.data = tb;
+      applyTextBoxVisual(tb, entry);
+    }
+    autosaveLocal();
+    closeTextBoxModal();
+  });
+}
+if (btnDeleteTextBox){
+  btnDeleteTextBox.addEventListener("click", () => {
+    if (!canEdit("delete text box")) return;
+    if (!activeTextBoxId) return;
+    const idx = textBoxes.findIndex((x) => x.id === activeTextBoxId);
+    if (idx < 0) return;
+    const removed = deepClone(textBoxes[idx]);
+    textBoxes.splice(idx, 1);
+    removeTextBoxMarker(removed.id);
+    pushUndo({ type:"delete_text_box", textBox: removed });
+    autosaveLocal();
+    closeTextBoxModal();
+  });
+}
 
 function renderModalColorBar(){
   modalColorBar.innerHTML = "";
@@ -5712,6 +6266,21 @@ const SERVER_STATE_API = "/api/state";
 const SERVER_AUTOSAVE_ENABLED = true;
 const LIVE_STATE_POLL_MS = 1000;
 var iranOrgChartEl = document.getElementById("iranOrgChart");
+const orgImgTools = document.getElementById("orgImgTools");
+const orgImgTargetLabel = document.getElementById("orgImgTargetLabel");
+const orgImgZoom = document.getElementById("orgImgZoom");
+const orgImgZoomVal = document.getElementById("orgImgZoomVal");
+const orgImgPosX = document.getElementById("orgImgPosX");
+const orgImgPosXVal = document.getElementById("orgImgPosXVal");
+const orgImgPosY = document.getElementById("orgImgPosY");
+const orgImgPosYVal = document.getElementById("orgImgPosYVal");
+const orgRowTarget = document.getElementById("orgRowTarget");
+const btnOrgAddCard = document.getElementById("btnOrgAddCard");
+const btnOrgDeleteCard = document.getElementById("btnOrgDeleteCard");
+let activeOrgImageNodeId = null;
+const BASE_ORG_NODE_IDS = new Set(Array.from(iranOrgChartEl?.querySelectorAll(".orgNode[data-org-id]") || []).map((n) => n.getAttribute("data-org-id")));
+let orgHiddenIds = new Set();
+let orgCustomCards = [];
 let currentHtmlFileHandle = null;
 let serverAutosaveTimer = null;
 let serverAutosaveInFlight = false;
@@ -5724,13 +6293,196 @@ let lastServerSavedAt = "";
 function canUseServerState(){
   return window.location.protocol !== "file:";
 }
+function clampOrgImageZoom(v){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(0.25, Math.min(3.5, +n.toFixed(2)));
+}
+function clampOrgImagePos(v){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 50;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+function getOrgImageNodeById(id){
+  if (!iranOrgChartEl || !id) return null;
+  return iranOrgChartEl.querySelector(`.orgNode[data-org-id="${id}"]`);
+}
+function getOrgImageView(node){
+  const box = node?.querySelector(".orgImgBox");
+  return {
+    zoom: clampOrgImageZoom(box?.dataset?.imgZoom || 1),
+    posX: clampOrgImagePos(box?.dataset?.imgPosX || 50),
+    posY: clampOrgImagePos(box?.dataset?.imgPosY || 50)
+  };
+}
+function applyOrgImageView(node){
+  const box = node?.querySelector(".orgImgBox");
+  if (!box) return;
+  const view = getOrgImageView(node);
+  box.dataset.imgZoom = String(view.zoom);
+  box.dataset.imgPosX = String(view.posX);
+  box.dataset.imgPosY = String(view.posY);
+  const img = box.querySelector("img");
+  if (!img) return;
+  img.style.objectPosition = `${view.posX}% ${view.posY}%`;
+  img.style.transformOrigin = "50% 50%";
+  img.style.transform = `scale(${view.zoom})`;
+}
+function updateOrgImageToolVals(view){
+  if (orgImgZoom) orgImgZoom.value = String(view.zoom);
+  if (orgImgZoomVal) orgImgZoomVal.textContent = `${view.zoom.toFixed(2)}x`;
+  if (orgImgPosX) orgImgPosX.value = String(view.posX);
+  if (orgImgPosXVal) orgImgPosXVal.textContent = `${view.posX}%`;
+  if (orgImgPosY) orgImgPosY.value = String(view.posY);
+  if (orgImgPosYVal) orgImgPosYVal.textContent = `${view.posY}%`;
+}
+function syncOrgImageToolsSelection(){
+  if (!iranOrgChartEl) return;
+  const admin = isAdminMode();
+  iranOrgChartEl.querySelectorAll(".orgImgBox").forEach((box) => box.classList.remove("selected"));
+  const activeNode = getOrgImageNodeById(activeOrgImageNodeId);
+  const activeBox = activeNode?.querySelector(".orgImgBox");
+  if (activeBox) activeBox.classList.add("selected");
+  if (orgImgTools) orgImgTools.classList.toggle("show", admin);
+  if (!orgImgTools) return;
+  const hasActive = !!activeNode;
+  if (orgImgTargetLabel){
+    const label = activeNode?.querySelector(".orgName")?.textContent?.trim();
+    orgImgTargetLabel.textContent = hasActive
+      ? `Selected: ${label || activeOrgImageNodeId}`
+      : "Select a photo slot to adjust headshot zoom/position.";
+  }
+  [orgImgZoom, orgImgPosX, orgImgPosY].forEach((el) => {
+    if (!el) return;
+    el.disabled = !admin || !hasActive;
+  });
+  if (orgRowTarget) orgRowTarget.disabled = !admin;
+  if (btnOrgDeleteCard) btnOrgDeleteCard.disabled = !admin || !hasActive;
+  if (btnOrgAddCard) btnOrgAddCard.disabled = !admin;
+  if (hasActive){
+    updateOrgImageToolVals(getOrgImageView(activeNode));
+  } else {
+    updateOrgImageToolVals({ zoom:1, posX:50, posY:50 });
+  }
+}
 function setOrgBoxAdminState(){
   if (!iranOrgChartEl) return;
   const admin = isAdminMode();
   iranOrgChartEl.querySelectorAll(".orgImgBox").forEach((box) => {
     box.classList.toggle("admin", admin);
-    box.setAttribute("title", admin ? "Drop image or click to upload" : "");
+    box.setAttribute("title", admin ? "Click to select. Double-click to upload. Drag/drop supported." : "");
   });
+  if (!admin) activeOrgImageNodeId = null;
+  syncOrgImageToolsSelection();
+  iranOrgChartEl.querySelectorAll(".orgStatus").forEach((el) => {
+    el.classList.toggle("admin", admin);
+  });
+}
+function setOrgNodeStatus(node, status){
+  if (!node) return;
+  let badge = node.querySelector(".orgStatus");
+  if (!badge){
+    badge = document.createElement("button");
+    badge.type = "button";
+    badge.className = "orgStatus";
+    node.appendChild(badge);
+  }
+  const dead = status === "dead";
+  badge.classList.remove("dead", "alive");
+  badge.classList.add(dead ? "dead" : "alive");
+  badge.textContent = dead ? "DEAD" : "ALIVE";
+  badge.dataset.status = dead ? "dead" : "alive";
+}
+function isCustomOrgNode(node){
+  return !!node?.getAttribute("data-org-custom");
+}
+function normalizeOrgRowKey(v){
+  const key = String(v || "").trim();
+  const allowed = new Set(["tier1", "tier2_command", "tier2_leadership", "tier3_ops", "tier_branches", "side_figures"]);
+  return allowed.has(key) ? key : "side_figures";
+}
+function getOrgRowContainer(rowKey){
+  if (!iranOrgChartEl) return null;
+  return iranOrgChartEl.querySelector(`[data-org-row="${normalizeOrgRowKey(rowKey)}"]`);
+}
+function getOrgNodeRowKey(node){
+  const holder = node?.closest("[data-org-row]");
+  return normalizeOrgRowKey(holder?.getAttribute("data-org-row"));
+}
+function createOrgNodeFromData(data, isCustom){
+  const node = document.createElement("div");
+  node.className = "orgNode";
+  node.setAttribute("data-org-id", data.id);
+  if (isCustom) node.setAttribute("data-org-custom", "1");
+  node.dataset.orgRow = normalizeOrgRowKey(data.rowKey);
+  const name = document.createElement("div");
+  name.className = "orgName orgEditable";
+  name.textContent = data.name || "New Official";
+  const role = document.createElement("div");
+  role.className = "orgRole orgEditable";
+  role.textContent = data.role || "Role";
+  const small = document.createElement("div");
+  small.className = "orgSmall orgEditable";
+  small.textContent = data.small || "";
+  node.appendChild(name);
+  node.appendChild(role);
+  node.appendChild(small);
+  return node;
+}
+function renderOrgCustomCards(){
+  if (!iranOrgChartEl) return;
+  iranOrgChartEl.querySelectorAll('.orgNode[data-org-custom="1"]').forEach((n) => n.remove());
+  for (const card of orgCustomCards){
+    card.rowKey = normalizeOrgRowKey(card.rowKey);
+    const targetRow = getOrgRowContainer(card.rowKey) || getOrgRowContainer("side_figures");
+    if (!targetRow) continue;
+    const node = createOrgNodeFromData(card, true);
+    targetRow.appendChild(node);
+    ensureOrgImageBoxes();
+    setOrgNodeStatus(node, card.status === "dead" ? "dead" : "alive");
+    const box = node.querySelector(".orgImgBox");
+    if (box){
+      box.dataset.imgZoom = String(clampOrgImageZoom(card.imageZoom || 1));
+      box.dataset.imgPosX = String(clampOrgImagePos(card.imagePosX || 50));
+      box.dataset.imgPosY = String(clampOrgImagePos(card.imagePosY || 50));
+    }
+    if (typeof card.image === "string" && card.image.startsWith("data:image/")) setOrgNodeImage(node, card.image);
+    else applyOrgImageView(node);
+  }
+  setOrgBoxAdminState();
+}
+function applyOrgHiddenCards(){
+  if (!iranOrgChartEl) return;
+  iranOrgChartEl.querySelectorAll('.orgNode[data-org-id]').forEach((node) => {
+    const id = node.getAttribute("data-org-id");
+    if (!id) return;
+    node.style.display = orgHiddenIds.has(id) ? "none" : "";
+  });
+}
+function syncOrgCustomCardsFromDom(){
+  if (!iranOrgChartEl) return;
+  const list = [];
+  iranOrgChartEl.querySelectorAll('.orgNode[data-org-custom="1"][data-org-id]').forEach((node) => {
+    const id = node.getAttribute("data-org-id");
+    if (!id) return;
+    const nameEl = node.querySelector(".orgName");
+    const roleEl = node.querySelector(".orgRole");
+    const smallEl = node.querySelector(".orgSmall");
+    const box = node.querySelector(".orgImgBox");
+    list.push({
+      id,
+      rowKey: getOrgNodeRowKey(node),
+      name: (nameEl?.textContent || "").trim(),
+      role: (roleEl?.textContent || "").trim(),
+      small: (smallEl?.textContent || "").trim(),
+      status: (node.querySelector(".orgStatus")?.dataset?.status === "dead") ? "dead" : "alive",
+      image: String(box?.dataset?.imageData || ""),
+      imageZoom: clampOrgImageZoom(box?.dataset?.imgZoom || 1),
+      imagePosX: clampOrgImagePos(box?.dataset?.imgPosX || 50),
+      imagePosY: clampOrgImagePos(box?.dataset?.imgPosY || 50)
+    });
+  });
+  orgCustomCards = list;
 }
 function setOrgNodeImage(node, dataUrl){
   if (!node) return;
@@ -5743,6 +6495,7 @@ function setOrgNodeImage(node, dataUrl){
     img.alt = "Org chart image";
     box.appendChild(img);
     box.dataset.imageData = dataUrl;
+    applyOrgImageView(node);
   } else {
     const ph = document.createElement("div");
     ph.className = "orgImgPh";
@@ -5754,19 +6507,32 @@ function setOrgNodeImage(node, dataUrl){
 function ensureOrgImageBoxes(){
   if (!iranOrgChartEl) return;
   iranOrgChartEl.querySelectorAll(".orgNode[data-org-id]").forEach((node) => {
-    if (node.querySelector(".orgImgBox")) return;
-    const box = document.createElement("div");
-    box.className = "orgImgBox";
-    const ph = document.createElement("div");
-    ph.className = "orgImgPh";
-    ph.textContent = "No image";
-    box.appendChild(ph);
-    node.insertBefore(box, node.firstChild);
+    let box = node.querySelector(".orgImgBox");
+    if (!box){
+      box = document.createElement("div");
+      box.className = "orgImgBox";
+      const ph = document.createElement("div");
+      ph.className = "orgImgPh";
+      ph.textContent = "No image";
+      box.appendChild(ph);
+      node.insertBefore(box, node.firstChild);
+    }
+    if (!box.dataset.imgZoom) box.dataset.imgZoom = "1";
+    if (!box.dataset.imgPosX) box.dataset.imgPosX = "50";
+    if (!box.dataset.imgPosY) box.dataset.imgPosY = "50";
+    const hasLegacyKilled = !!node.querySelector(".orgKilled");
+    if (hasLegacyKilled){
+      node.querySelectorAll(".orgKilled").forEach((k) => k.remove());
+    }
+    const existing = node.querySelector(".orgStatus");
+    const startStatus = existing?.dataset?.status || (hasLegacyKilled ? "dead" : "alive");
+    setOrgNodeStatus(node, startStatus === "dead" ? "dead" : "alive");
   });
 }
 function captureOrgChartState(){
   const items = {};
   if (!iranOrgChartEl) return { items };
+  syncOrgCustomCardsFromDom();
   iranOrgChartEl.querySelectorAll(".orgNode[data-org-id]").forEach((node) => {
     const id = node.getAttribute("data-org-id");
     if (!id) return;
@@ -5778,14 +6544,37 @@ function captureOrgChartState(){
       name: (nameEl?.textContent || "").trim(),
       role: (roleEl?.textContent || "").trim(),
       small: (smallEl?.textContent || "").trim(),
-      image: String(imgBox?.dataset?.imageData || "")
+      image: String(imgBox?.dataset?.imageData || ""),
+      imageZoom: clampOrgImageZoom(imgBox?.dataset?.imgZoom || 1),
+      imagePosX: clampOrgImagePos(imgBox?.dataset?.imgPosX || 50),
+      imagePosY: clampOrgImagePos(imgBox?.dataset?.imgPosY || 50),
+      status: (node.querySelector(".orgStatus")?.dataset?.status === "dead") ? "dead" : "alive"
     };
   });
-  return { items };
+  return {
+    items,
+    hiddenIds: Array.from(orgHiddenIds),
+    customCards: deepClone(orgCustomCards)
+  };
 }
 function applyOrgChartState(payload){
   if (!iranOrgChartEl) return;
   const items = payload?.items;
+  orgHiddenIds = new Set(Array.isArray(payload?.hiddenIds) ? payload.hiddenIds.map(String) : []);
+  orgCustomCards = Array.isArray(payload?.customCards) ? payload.customCards.map((c) => ({
+    id: c?.id || cryptoRandomId(),
+    rowKey: normalizeOrgRowKey(c?.rowKey),
+    name: typeof c?.name === "string" ? c.name : "New Official",
+    role: typeof c?.role === "string" ? c.role : "Role",
+    small: typeof c?.small === "string" ? c.small : "",
+    status: c?.status === "dead" ? "dead" : "alive",
+    image: (typeof c?.image === "string" && c.image.startsWith("data:image/")) ? c.image : "",
+    imageZoom: clampOrgImageZoom(c?.imageZoom || 1),
+    imagePosX: clampOrgImagePos(c?.imagePosX || 50),
+    imagePosY: clampOrgImagePos(c?.imagePosY || 50)
+  })) : [];
+  renderOrgCustomCards();
+  applyOrgHiddenCards();
   if (!items || typeof items !== "object") return;
   iranOrgChartEl.querySelectorAll(".orgNode[data-org-id]").forEach((node) => {
     const id = node.getAttribute("data-org-id");
@@ -5797,10 +6586,21 @@ function applyOrgChartState(payload){
     if (nameEl && typeof item.name === "string") nameEl.textContent = item.name;
     if (roleEl && typeof item.role === "string") roleEl.textContent = item.role;
     if (smallEl && typeof item.small === "string") smallEl.textContent = item.small;
+    const imgBox = node.querySelector(".orgImgBox");
+    if (imgBox){
+      imgBox.dataset.imgZoom = String(clampOrgImageZoom(item.imageZoom || imgBox.dataset.imgZoom || 1));
+      imgBox.dataset.imgPosX = String(clampOrgImagePos(item.imagePosX || imgBox.dataset.imgPosX || 50));
+      imgBox.dataset.imgPosY = String(clampOrgImagePos(item.imagePosY || imgBox.dataset.imgPosY || 50));
+    }
+    setOrgNodeStatus(node, item.status === "dead" ? "dead" : "alive");
     if (typeof item.image === "string" && item.image.startsWith("data:image/")){
       setOrgNodeImage(node, item.image);
+    } else {
+      applyOrgImageView(node);
     }
   });
+  applyOrgHiddenCards();
+  syncOrgImageToolsSelection();
 }
 function beginOrgInlineEdit(target){
   if (!target || !(target instanceof HTMLElement)) return;
@@ -5823,6 +6623,69 @@ function endOrgInlineEdit(target){
   target.contentEditable = "false";
   target.classList.remove("editing");
   target.textContent = (target.textContent || "").replace(/\s+/g, " ").trim();
+  autosaveLocal();
+}
+async function promptOrgImageUploadForNode(node){
+  if (!node || !isAdminMode()) return;
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = async () => {
+    const f = input.files?.[0];
+    if (!f) return;
+    const dataUrl = await fileToDataURL(f);
+    setOrgNodeImage(node, dataUrl);
+    autosaveLocal();
+  };
+  input.click();
+}
+function applyOrgImageToolInputs(saveNow){
+  const node = getOrgImageNodeById(activeOrgImageNodeId);
+  if (!node || !isAdminMode()) return;
+  const box = node.querySelector(".orgImgBox");
+  if (!box) return;
+  box.dataset.imgZoom = String(clampOrgImageZoom(orgImgZoom?.value || 1));
+  box.dataset.imgPosX = String(clampOrgImagePos(orgImgPosX?.value || 50));
+  box.dataset.imgPosY = String(clampOrgImagePos(orgImgPosY?.value || 50));
+  applyOrgImageView(node);
+  updateOrgImageToolVals(getOrgImageView(node));
+  if (saveNow) autosaveLocal();
+}
+function addOrgCard(){
+  if (!isAdminMode()) return;
+  const preferredRow = normalizeOrgRowKey(orgRowTarget?.value);
+  const card = {
+    id: cryptoRandomId(),
+    name: `New Official ${orgCustomCards.length + 1}`,
+    role: "Role",
+    small: "",
+    status: "alive",
+    rowKey: preferredRow,
+    image: "",
+    imageZoom: 1,
+    imagePosX: 50,
+    imagePosY: 50
+  };
+  orgCustomCards.push(card);
+  renderOrgCustomCards();
+  activeOrgImageNodeId = card.id;
+  syncOrgImageToolsSelection();
+  autosaveLocal();
+}
+function deleteSelectedOrgCard(){
+  if (!isAdminMode() || !activeOrgImageNodeId) return;
+  const id = activeOrgImageNodeId;
+  const node = getOrgImageNodeById(id);
+  if (!node) return;
+  if (isCustomOrgNode(node)){
+    orgCustomCards = orgCustomCards.filter((c) => c.id !== id);
+    node.remove();
+  } else {
+    orgHiddenIds.add(id);
+    node.style.display = "none";
+  }
+  activeOrgImageNodeId = null;
+  syncOrgImageToolsSelection();
   autosaveLocal();
 }
 function initOrgChartEditor(){
@@ -5860,21 +6723,28 @@ function initOrgChartEditor(){
   iranOrgChartEl.addEventListener("click", async (ev) => {
     const t = ev.target;
     if (!(t instanceof HTMLElement)) return;
+    const statusBtn = t.closest(".orgStatus");
+    if (statusBtn){
+      if (!isAdminMode()) return;
+      const node = statusBtn.closest(".orgNode[data-org-id]");
+      if (!node) return;
+      const next = statusBtn.dataset.status === "dead" ? "alive" : "dead";
+      setOrgNodeStatus(node, next);
+      setOrgBoxAdminState();
+      autosaveLocal();
+      ev.preventDefault();
+      return;
+    }
     const box = t.closest(".orgImgBox");
     if (!box || !isAdminMode()) return;
     const node = box.closest(".orgNode[data-org-id]");
     if (!node) return;
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.onchange = async () => {
-      const f = input.files?.[0];
-      if (!f) return;
-      const dataUrl = await fileToDataURL(f);
-      setOrgNodeImage(node, dataUrl);
-      autosaveLocal();
-    };
-    input.click();
+    activeOrgImageNodeId = node.getAttribute("data-org-id") || null;
+    if (orgRowTarget) orgRowTarget.value = getOrgNodeRowKey(node);
+    syncOrgImageToolsSelection();
+    if (ev.detail >= 2){
+      await promptOrgImageUploadForNode(node);
+    }
   });
   iranOrgChartEl.addEventListener("dragover", (ev) => {
     const t = ev.target;
@@ -5895,8 +6765,18 @@ function initOrgChartEditor(){
     ev.preventDefault();
     const dataUrl = await fileToDataURL(file);
     setOrgNodeImage(node, dataUrl);
+    activeOrgImageNodeId = node.getAttribute("data-org-id") || null;
+    syncOrgImageToolsSelection();
     autosaveLocal();
   });
+  if (orgImgZoom) orgImgZoom.addEventListener("input", () => applyOrgImageToolInputs(false));
+  if (orgImgPosX) orgImgPosX.addEventListener("input", () => applyOrgImageToolInputs(false));
+  if (orgImgPosY) orgImgPosY.addEventListener("input", () => applyOrgImageToolInputs(false));
+  if (orgImgZoom) orgImgZoom.addEventListener("change", () => applyOrgImageToolInputs(true));
+  if (orgImgPosX) orgImgPosX.addEventListener("change", () => applyOrgImageToolInputs(true));
+  if (orgImgPosY) orgImgPosY.addEventListener("change", () => applyOrgImageToolInputs(true));
+  if (btnOrgAddCard) btnOrgAddCard.addEventListener("click", addOrgCard);
+  if (btnOrgDeleteCard) btnOrgDeleteCard.addEventListener("click", deleteSelectedOrgCard);
 }
 initOrgChartEditor();
 
@@ -5907,6 +6787,7 @@ function serializeStateObject(){
     map: { center: map.getCenter().toArray(), zoom: map.getZoom() },
     strikes,
     arrows,
+    textBoxes,
     orgChart: captureOrgChartState(),
     barCharts: deepClone(barChartsState),
     graph3: deepClone(graph3State)
@@ -6099,7 +6980,13 @@ function loadFromObject(obj, options = {}){
     }))
     : [];
 
+  const incomingTextBoxes = Array.isArray(obj?.textBoxes) ? obj.textBoxes : [];
+  textBoxes = incomingTextBoxes
+    .map((tb) => sanitizeTextBox(tb))
+    .filter((tb) => Number.isFinite(tb.lat) && Number.isFinite(tb.lng));
+
   renderStrikes();
+  renderTextBoxes();
 
   const c = obj?.map?.center;
   const z = obj?.map?.zoom;
@@ -6714,6 +7601,25 @@ map.on("load", async () => {
         map.addSource("countries", { type:"geojson", data:countries });
         map.addLayer({ id:"countries-fill", type:"fill", source:"countries", paint:{ "fill-color":"rgba(0,255,106,0.14)" } });
         map.addLayer({ id:"countries-line", type:"line", source:"countries", paint:{ "line-color":"rgba(0,255,106,0.40)", "line-width":1.2 }});
+        map.addLayer({
+          id: "countries-label",
+          type: "symbol",
+          source: "countries",
+          minzoom: 2.2,
+          layout: {
+            "symbol-placement": "point",
+            "text-field": ["coalesce", ["get","name_en"], ["get","NAME_EN"], ["get","ADMIN"], ["get","name"], ""],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 2.2, 9, 5.5, 12],
+            "text-font": ["Open Sans Regular"],
+            "text-max-width": 8,
+            "text-allow-overlap": false
+          },
+          paint: {
+            "text-color": "rgba(220,255,235,0.9)",
+            "text-halo-color": "rgba(0,0,0,0.75)",
+            "text-halo-width": 1.1
+          }
+        });
       }
       if (states && !map.getSource("states")){
         map.addSource("states", { type:"geojson", data:states });
@@ -6747,10 +7653,14 @@ map.on("load", async () => {
   }
 });
 
-window.addEventListener("resize", positionCamWatermark);
+window.addEventListener("resize", () => {
+  positionCamWatermark();
+  refreshTextBoxOpacities();
+});
 window.addEventListener("load", () => {
   positionCamWatermark();
   setTimeout(positionCamWatermark, 0);
+  refreshTextBoxOpacities();
 });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) return;
