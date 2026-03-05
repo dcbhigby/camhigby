@@ -596,17 +596,17 @@
     }
     .statsDayDivider{
       position:absolute;
-      top:38px;
+      top:56px;
       bottom:0;
       width:1px;
       background: rgba(220,255,235,.28);
       transform:translateX(-50%);
       pointer-events:none;
-      z-index:4;
+      z-index:2;
     }
     .statsDayLabel{
       position:absolute;
-      top:64px;
+      top:66px;
       transform:translateX(-50%);
       font-size:9px;
       letter-spacing:.06em;
@@ -1320,19 +1320,6 @@
       transform: translateY(0);
     }
     .status b{ color: rgba(220,255,235,.65); }
-    .camWatermark{
-      position:absolute; bottom:12px; left:12px; z-index:10000;
-      border:1px solid rgba(0,255,106,.28);
-      background: rgba(0,0,0,.92);
-      border-radius:10px;
-      padding:7px 10px;
-      box-shadow: 0 0 18px rgba(0,255,106,.10);
-      font-size:12px;
-      display:flex; align-items:center; gap:8px;
-      opacity:1;
-      white-space:nowrap;
-    }
-    .camWatermark svg{ width:15px; height:15px; display:block; color: rgba(220,255,235,.98); }
     .legendBox{
       position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:10000;
       border:none;
@@ -1704,7 +1691,6 @@
         max-width: none;
       }
       .legendBox{ left:50%; right:auto; transform:translateX(-50%); bottom:12px; }
-      .camWatermark{ bottom:12px; }
       .edgeTab{ padding:9px 6px; font-size:10px; border-radius:0 10px 10px 0; }
       .altPageContent{ inset:56px 12px auto 40px; min-height: auto; }
       .statsSpacer{ height: 360px; }
@@ -1734,7 +1720,6 @@
       .modalBody{ padding:8px 10px; }
       .timelineItemRow{ grid-template-columns: 1fr; }
       .legendBox{ left:50%; right:auto; transform:translateX(-50%); bottom:8px; padding:7px 9px; gap:8px; }
-      .camWatermark{ bottom:8px; padding:6px 8px; font-size:11px; }
       .edgeTab{ padding:8px 5px; font-size:9px; border-radius:0 9px 9px 0; }
       .altPageContent{ inset:48px 8px auto 34px; min-height: auto; }
       .statsSpacer{ height: 280px; }
@@ -2135,10 +2120,6 @@
 
           <button id="btnPathMode" class="ghost" title="Option+click a FROM strike to lock; then click TO strikes">ADD PATH: OFF</button>
           <div class="badge" id="pathFromBadge" title="Option+click a strike to lock FROM">FROM: —</div>
-          <label for="flightOpacityMaster" style="font-size:10px; opacity:.9;">PATH OPACITY</label>
-          <input id="flightOpacityMaster" type="range" min="0" max="100" step="1" value="100" style="width:120px;" />
-          <div class="rangeVal" id="flightOpacityMasterVal">100%</div>
-          <button id="btnFlightOpacityKill" class="ghost" title="Disable master opacity and return to normal zoom-based opacity">KILL SWITCH: NORMAL</button>
 
           <button id="btnOpen">OPEN</button>
           <button id="btnSave" class="ghost">SAVE</button>
@@ -2161,7 +2142,7 @@
           </div>
           <div style="opacity:.85; margin-top:6px;">
             Flight paths: turn <b>ADD PATH</b> on • <b>Option+click</b> a strike to lock FROM • click other strikes to add TO paths.
-            Paths show only at zoom ≥ 4.37 and fade as you zoom in.
+            Older events render with lighter path opacity, newer events render stronger.
           </div>
           <div style="opacity:.85; margin-top:6px;">
             Auto-path: if FROM is <b>LOCKED</b> and ADD STRIKE is ON, each new strike will automatically get a path from that FROM.
@@ -2187,13 +2168,6 @@
     </div>
     <div class="viewerOptionsPanel" id="viewerOptionsPanel" aria-label="Viewer options panel">
       <div class="title" style="font-size:11px;">VIEWER OPTIONS</div>
-      <div class="field">
-        <label for="viewerFlightOpacity">Flight path opacity</label>
-        <div class="rangeRow">
-          <input id="viewerFlightOpacity" type="range" min="0" max="100" step="1" value="100" />
-          <div class="rangeVal" id="viewerFlightOpacityVal">100%</div>
-        </div>
-      </div>
       <div class="field">
         <label for="viewerStrikeSearch">Search strikes (title/notes keywords)</label>
         <input id="viewerStrikeSearch" type="text" placeholder="e.g., bridge depot hospital" />
@@ -2275,15 +2249,6 @@
     </div>
     <div class="netBanner" id="netBanner" aria-live="polite">OFFLINE: reconnecting...</div>
     <div class="pullRefreshHint" id="pullRefreshHint">PULL TO REFRESH</div>
-    <div class="camWatermark" id="camWatermark">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
-        <circle cx="12" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".75"></circle>
-        <path d="M12 12 L19 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-        <circle cx="12" cy="12" r="1.6" fill="currentColor"></circle>
-      </svg>
-      <b>Cam Higby</b>
-    </div>
     <div class="legendBox" id="legendBox" aria-label="Action color legend">
       <div class="legendTitle"><b>LEGEND</b></div>
       <div class="legendItem toggleable" data-legend-color="#2aa0ff"><span class="legendSwatch" style="background:#2aa0ff;"></span>U.S. action</div>
@@ -2560,7 +2525,6 @@ const netBanner    = document.getElementById("netBanner");
 const pullRefreshHint = document.getElementById("pullRefreshHint");
 const legendBoxEl = document.getElementById("legendBox");
 const legendColorItems = Array.from(document.querySelectorAll("#legendBox .legendItem.toggleable"));
-const camWatermarkEl = document.getElementById("camWatermark");
 const activeLegendColorFilter = new Set();
 function setStateStatus(msg){ netStatus.textContent = `STATE: ${msg}`; }
 function isRenderableImageSrc(src){
@@ -2655,18 +2619,6 @@ function escapeHtml(s){
     .replace(/"/g, "&quot;");
 }
 
-function positionCamWatermark(){
-  if (!legendBoxEl || !camWatermarkEl) return;
-  const gap = 10;
-  const legendRect = legendBoxEl.getBoundingClientRect();
-  const wmRect = camWatermarkEl.getBoundingClientRect();
-  const vw = window.innerWidth;
-
-  let left = legendRect.right + gap;
-  const maxLeft = vw - wmRect.width - 8;
-  left = Math.min(Math.max(8, left), Math.max(8, maxLeft));
-  camWatermarkEl.style.left = `${left}px`;
-}
 function normalizeLegendColor(hex){
   return String(hex || "").trim().toLowerCase();
 }
@@ -2796,8 +2748,6 @@ const adminReportsPanel = document.getElementById("adminReportsPanel");
 const btnAdminReportsRefresh = document.getElementById("btnAdminReportsRefresh");
 const adminReportsList = document.getElementById("adminReportsList");
 const adminReportsDetail = document.getElementById("adminReportsDetail");
-const viewerFlightOpacity = document.getElementById("viewerFlightOpacity");
-const viewerFlightOpacityVal = document.getElementById("viewerFlightOpacityVal");
 const viewerStrikeSearch = document.getElementById("viewerStrikeSearch");
 const btnViewerFocusNext = document.getElementById("btnViewerFocusNext");
 const viewerMatchCount = document.getElementById("viewerMatchCount");
@@ -4358,6 +4308,24 @@ function getStrikeSortTimeForTimeline(s, dateIso){
   const secOfDay = (d.getUTCHours() * 3600) + (d.getUTCMinutes() * 60) + d.getUTCSeconds();
   return base + (secOfDay * 1000);
 }
+function normalizeTimelineDateForStrike(strike, dateIso){
+  if (!isIsoDateString(dateIso)) return "";
+  const createdMs = Date.parse(String(strike?.createdAt || ""));
+  if (!Number.isFinite(createdMs)) return dateIso;
+  const createdYear = new Date(createdMs).getUTCFullYear();
+  const y = Number(dateIso.slice(0, 4));
+  if (!Number.isInteger(y) || y === createdYear) return dateIso;
+  // Guard against common one-year typos on linked events:
+  // if the strike date year differs from created year by exactly 1
+  // and that old/new year is not explicitly mentioned in notes/title,
+  // prefer the created year for timeline placement.
+  if (Math.abs(y - createdYear) !== 1) return dateIso;
+  const context = `${String(strike?.notes || "")} ${String(strike?.title || "")}`;
+  const hasOriginalYearMention = new RegExp(`\\b${y}\\b`).test(context);
+  const hasCreatedYearMention = new RegExp(`\\b${createdYear}\\b`).test(context);
+  if (hasOriginalYearMention || hasCreatedYearMention) return dateIso;
+  return `${createdYear}${dateIso.slice(4)}`;
+}
 function buildAutoStatsTimelineEventsFromStrikes(){
   let sourceStrikes = [];
   try{
@@ -4371,7 +4339,7 @@ function buildAutoStatsTimelineEventsFromStrikes(){
   const groups = new Map();
   for (const s of titled){
     const title = String(s?.title || "").trim();
-    const date = getStrikeDateForTimeline(s);
+    const date = normalizeTimelineDateForStrike(s, getStrikeDateForTimeline(s));
     if (!isIsoDateString(date)) continue;
     const key = `${title}\u0000${date}`;
     if (!groups.has(key)){
@@ -4455,7 +4423,7 @@ function resolveStatsTimelineRenderEvents(){
       if (!s) continue;
       const liveTitle = String(s.title || "").trim();
       if (liveTitle) e.label = liveTitle;
-      const liveDate = getStrikeDateForTimeline(s);
+      const liveDate = normalizeTimelineDateForStrike(s, getStrikeDateForTimeline(s));
       if (isIsoDateString(liveDate)){
         e.date = liveDate;
         // Manual cards keep drag-controlled position; do not override with strike time.
@@ -4471,11 +4439,11 @@ function resolveStatsTimelineRenderEvents(){
     if (Array.isArray(e?.groupStrikeIds) && e.groupStrikeIds.length){
       const linked = e.groupStrikeIds.map((id) => allStrikes.find((x) => x.id === id)).filter(Boolean);
       if (!linked.length) continue;
-      const dates = linked.map((s) => getStrikeDateForTimeline(s)).filter((d) => isIsoDateString(d)).sort();
+      const dates = linked.map((s) => normalizeTimelineDateForStrike(s, getStrikeDateForTimeline(s))).filter((d) => isIsoDateString(d)).sort();
       if (dates.length){
         e.date = dates[0];
       }
-      const times = linked.map((s) => getStrikeSortTimeForTimeline(s, getStrikeDateForTimeline(s))).filter((t) => Number.isFinite(t));
+      const times = linked.map((s) => getStrikeSortTimeForTimeline(s, normalizeTimelineDateForStrike(s, getStrikeDateForTimeline(s)))).filter((t) => Number.isFinite(t));
       if (times.length){
         if (e.auto){
           e.sortTime = Math.min(...times);
@@ -4500,11 +4468,11 @@ function resolveStatsTimelineRenderEvents(){
       else if (ids.length > 1) e.groupStrikeIds = ids;
     }
     if (!isIsoDateString(e.date)){
-      const dates = matching.map((s) => getStrikeDateForTimeline(s)).filter((d) => isIsoDateString(d)).sort();
+      const dates = matching.map((s) => normalizeTimelineDateForStrike(s, getStrikeDateForTimeline(s))).filter((d) => isIsoDateString(d)).sort();
       if (dates.length) e.date = dates[0];
     }
     if (!Number.isFinite(+e.sortTime) && isIsoDateString(e.date)){
-      const times = matching.map((s) => getStrikeSortTimeForTimeline(s, getStrikeDateForTimeline(s))).filter((t) => Number.isFinite(t));
+      const times = matching.map((s) => getStrikeSortTimeForTimeline(s, normalizeTimelineDateForStrike(s, getStrikeDateForTimeline(s)))).filter((t) => Number.isFinite(t));
       e.sortTime = times.length ? Math.min(...times) : Date.parse(`${e.date}T00:00:00Z`);
     }
   }
@@ -4689,6 +4657,65 @@ function moveManualTimelineEventToX(eventId, xPx){
   evt.orderPos = nextOrder;
   return changed;
 }
+function resolveStatsTimelineCardOverlaps(items, railWidth, opts = {}){
+  if (!Array.isArray(items) || !items.length) return;
+  const minLeft = Math.max(0, Number(opts.minLeft) || 0);
+  const maxRight = Math.max(minLeft + 1, Number(opts.maxRight) || railWidth || 1);
+  const minGap = Math.max(10, Number(opts.minGap) || 24);
+
+  const rows = items
+    .map((it) => {
+      const left = Number.isFinite(+it.leftPx) ? +it.leftPx : 0;
+      const width = Math.max(90, Math.round(it.card?.offsetWidth || 190));
+      return { ...it, leftPx: left, width };
+    })
+    .sort((a, b) => a.leftPx - b.leftPx);
+
+  const placeWithGap = (gapPx) => {
+    if (!rows.length) return;
+    rows[0].leftPx = Math.max(minLeft, Math.min(maxRight, rows[0].leftPx));
+    for (let i = 1; i < rows.length; i++){
+      const prev = rows[i - 1];
+      const cur = rows[i];
+      const required = prev.leftPx + Math.ceil((prev.width + cur.width) / 2) + gapPx;
+      cur.leftPx = Math.max(cur.leftPx, required);
+    }
+    const over = rows[rows.length - 1].leftPx - maxRight;
+    if (over > 0){
+      for (const r of rows) r.leftPx -= over;
+      const under = minLeft - rows[0].leftPx;
+      if (under > 0){
+        for (const r of rows) r.leftPx += under;
+      }
+    }
+  };
+
+  placeWithGap(minGap);
+
+  const totalNeeded = rows.reduce((acc, r) => acc + r.width, 0)
+    + Math.max(0, rows.length - 1) * minGap;
+  const available = Math.max(1, maxRight - minLeft);
+  if (totalNeeded > available){
+    const dynamicGap = Math.max(4, Math.floor((available - rows.reduce((a, r) => a + r.width, 0)) / Math.max(1, rows.length - 1)));
+    rows[0].leftPx = minLeft + Math.ceil(rows[0].width / 2);
+    for (let i = 1; i < rows.length; i++){
+      const prev = rows[i - 1];
+      const cur = rows[i];
+      cur.leftPx = prev.leftPx + Math.ceil((prev.width + cur.width) / 2) + dynamicGap;
+    }
+    const overflow = rows[rows.length - 1].leftPx - maxRight;
+    if (overflow > 0){
+      for (const r of rows) r.leftPx -= overflow;
+    }
+  }
+
+  for (const r of rows){
+    const px = Math.round(r.leftPx);
+    if (r.tick) r.tick.style.left = `${px}px`;
+    if (r.dot) r.dot.style.left = `${px}px`;
+    if (r.card) r.card.style.left = `${px}px`;
+  }
+}
 function renderStatsTimeline(){
   if (statsTimelineTitleOut) statsTimelineTitleOut.textContent = (statsTimelineState.title || "").trim() || "OPERATION TIMELINE";
   if (!statsTimelineRail) return;
@@ -4722,6 +4749,7 @@ function renderStatsTimeline(){
   const minGapPx = 200;
   const perDayMinWidth = 320;
   const oneDayMs = 86400000;
+  const dayBoundsByIso = new Map();
   const dated = [];
   const undated = [];
   for (const e of ordered){
@@ -4763,42 +4791,13 @@ function renderStatsTimeline(){
       });
     }
 
-    const renderedDayLabels = new Set();
-    for (const dayStart of dayStarts){
-      const dayLabel = formatTimelineDayLabel(dayStart);
-      if (renderedDayLabels.has(dayLabel)) continue;
-      renderedDayLabels.add(dayLabel);
-      const x = dayMarkerX.get(dayStart);
-      const div = document.createElement("div");
-      div.className = "statsDayDivider";
-      div.style.left = `${Math.round(x)}px`;
-      statsTimelineRail.appendChild(div);
-      const lab = document.createElement("div");
-      lab.className = "statsDayLabel";
-      lab.style.left = `${Math.round(x)}px`;
-      lab.textContent = dayLabel;
-      statsTimelineRail.appendChild(lab);
-    }
-    const endDayLabel = formatTimelineDayLabel(finalBoundaryDay);
-    if (!renderedDayLabels.has(endDayLabel)){
-      const xEnd = dayMarkerX.get(finalBoundaryDay);
-      const endDiv = document.createElement("div");
-      endDiv.className = "statsDayDivider";
-      endDiv.style.left = `${Math.round(xEnd)}px`;
-      statsTimelineRail.appendChild(endDiv);
-      const endLab = document.createElement("div");
-      endLab.className = "statsDayLabel";
-      endLab.style.left = `${Math.round(xEnd)}px`;
-      endLab.textContent = endDayLabel;
-      statsTimelineRail.appendChild(endLab);
-    }
-
     for (const dayStart of dayStarts){
       const list = (dayEvents.get(dayStart) || []).slice();
       const segmentStart = dayMarkerX.get(dayStart);
       const segmentWidth = dayWidths.get(dayStart) || perDayMinWidth;
       const minX = segmentStart + dayInnerPad;
       const maxX = segmentStart + segmentWidth - dayInnerPad;
+      dayBoundsByIso.set(formatTimelineDayLabel(dayStart), { minX, maxX, startX: segmentStart, endX: segmentStart + segmentWidth });
       const based = list.map((e) => {
         let t = Number.isFinite(+e.sortTime) ? +e.sortTime : dayStart;
         if (!e.auto){
@@ -4848,6 +4847,7 @@ function renderStatsTimeline(){
   const usableEndX = Math.max(usableStartX + 1, requiredW - endPad);
   const usableSpanX = Math.max(1, usableEndX - usableStartX);
   const lineGrowSec = 0.9;
+  const placedItems = [];
 
   laidOut.forEach(({ e, x }) => {
     statsTimelineRenderedById.set(String(e?.id || ""), e);
@@ -4855,6 +4855,12 @@ function renderStatsTimeline(){
     if (!e.auto && Number.isFinite(+e?.orderPos)){
       const r = Math.max(0, Math.min(1, (+e.orderPos) / 100));
       px = usableStartX + (usableSpanX * r);
+    }
+    if (isIsoDateString(e?.date)){
+      const bounds = dayBoundsByIso.get(String(e.date));
+      if (bounds){
+        px = Math.max(bounds.minX, Math.min(bounds.maxX, px));
+      }
     }
     const left = `${Math.round(px)}px`;
     const tick = document.createElement("div");
@@ -4899,7 +4905,41 @@ function renderStatsTimeline(){
       <div class="statsTimeLabel">${escapeHtml((e.label || "").trim() || "EVENT")}</div>
     `;
     statsTimelineRail.appendChild(card);
+    placedItems.push({
+      id: String(e?.id || ""),
+      leftPx: Math.round(px),
+      tick,
+      dot,
+      card
+    });
   });
+  resolveStatsTimelineCardOverlaps(placedItems, requiredW, {
+    minLeft: startPad + 8,
+    maxRight: Math.max(startPad + 10, requiredW - endPad - 8),
+    minGap: 18
+  });
+  // Expand rail to fit actual rendered card widths so cards never fall off the end.
+  if (placedItems.length){
+    const maxHalf = Math.max(60, ...placedItems.map((it) => Math.ceil((it.card?.offsetWidth || 120) / 2)));
+    let railW = requiredW;
+    for (let pass = 0; pass < 3; pass++){
+      resolveStatsTimelineCardOverlaps(placedItems, railW, {
+        minLeft: startPad + maxHalf + 8,
+        maxRight: Math.max(startPad + maxHalf + 10, railW - endPad - maxHalf - 8),
+        minGap: 18
+      });
+      let maxExtent = 0;
+      for (const it of placedItems){
+        const center = Number.parseFloat(it.card?.style?.left || "") || it.leftPx || 0;
+        const half = Math.ceil((it.card?.offsetWidth || 120) / 2);
+        maxExtent = Math.max(maxExtent, center + half);
+      }
+      const needed = Math.max(viewportW, Math.ceil(maxExtent + endPad + 12));
+      if (needed <= railW) break;
+      railW = needed;
+      statsTimelineRail.style.width = `${railW}px`;
+    }
+  }
   const q = String(statsTimelineSearchInput?.value || "").trim();
   if (q){
     statsTimelineSearchMatches = collectTimelineSearchMatches(q);
@@ -6497,11 +6537,53 @@ let pathFromId = null;
 let pathFromLocked = false;
 const btnPathMode = document.getElementById("btnPathMode");
 const pathFromBadge = document.getElementById("pathFromBadge");
-const flightOpacityMaster = document.getElementById("flightOpacityMaster");
-const flightOpacityMasterVal = document.getElementById("flightOpacityMasterVal");
-const btnFlightOpacityKill = document.getElementById("btnFlightOpacityKill");
-let flightOpacityOverrideEnabled = false;
-let flightOpacityMasterValue = 1;
+function parseArrowChronologyValue(arrow, fromStrike, toStrike){
+  const toDate = getStrikeDateForChronology(toStrike);
+  const fromDate = getStrikeDateForChronology(fromStrike);
+  const toValue = getStrikeSortTimeForTimeline(toStrike, toDate);
+  if (Number.isFinite(toValue)) return toValue;
+  const fromValue = getStrikeSortTimeForTimeline(fromStrike, fromDate);
+  if (Number.isFinite(fromValue)) return fromValue;
+  const arrowCreated = Date.parse(String(arrow?.createdAt || ""));
+  if (Number.isFinite(arrowCreated)) return arrowCreated;
+  return null;
+}
+function getStrikeDateForChronology(strike){
+  if (!strike || typeof strike !== "object") return "";
+  const baseDate = getStrikeDateForTimeline(strike);
+  try{
+    if (modalWrap?.style?.display === "flex" && activeStrikeId && String(strike.id) === String(activeStrikeId)){
+      const edited = String(modalDate?.value || "").trim();
+      return /^\d{4}-\d{2}-\d{2}$/.test(edited) ? edited : "";
+    }
+  }catch{}
+  return baseDate;
+}
+function buildArrowChronologyOpacityMap(){
+  const pairs = [];
+  let seq = 0;
+  for (const a of arrows){
+    const fromS = strikes.find((s) => s.id === a.fromId);
+    const toS = strikes.find((s) => s.id === a.toId);
+    if (!fromS || !toS) continue;
+    const value = parseArrowChronologyValue(a, fromS, toS);
+    pairs.push({ id: a.id, value, seq: seq++ });
+  }
+  pairs.sort((a, b) => {
+    const av = Number.isFinite(a.value) ? a.value : Number.POSITIVE_INFINITY;
+    const bv = Number.isFinite(b.value) ? b.value : Number.POSITIVE_INFINITY;
+    if (av !== bv) return av - bv;
+    return a.seq - b.seq;
+  });
+  const out = new Map();
+  const total = Math.max(1, pairs.length);
+  for (let i = 0; i < pairs.length; i++){
+    const rank = (i + 1) / total; // oldest -> newest
+    const op = clamp(0.01 + (0.99 * Math.pow(rank, 4.8)), 0.01, 1);
+    out.set(pairs[i].id, op);
+  }
+  return out;
+}
 
 function updatePathFromBadge(){
   if (!pathMode){ pathFromBadge.textContent = "FROM: —"; return; }
@@ -6523,19 +6605,6 @@ btnPathMode.addEventListener("click", () => {
 });
 
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-function flightOpacityForZoom(z){
-  if (z <= 3.97){
-    return 0.03;
-  }
-  if (z < 4.37){
-    const tOut = clamp((z - 3.97) / (4.37 - 3.97), 0, 1);
-    // Rapid fade-in near the visibility threshold.
-    return 0.03 + (0.97 * tOut * tOut);
-  }
-  const t = clamp((z - 4.37) / (9.0 - 4.37), 0, 1);
-  const o = 1 - t;
-  return o*o;
-}
 
 function buildFlightPathCoords(fromLngLat, toLngLat, curvature=0.28, segments=60){
   const a = maplibregl.MercatorCoordinate.fromLngLat({ lng: fromLngLat[0], lat: fromLngLat[1] });
@@ -6569,15 +6638,17 @@ function bearingDegrees(a, b){
 
 function arrowsToGeoJSON(){
   const features = [];
+  const opacityByArrowId = buildArrowChronologyOpacityMap();
   for (const a of arrows){
     const fromS = strikes.find(s => s.id === a.fromId);
     const toS   = strikes.find(s => s.id === a.toId);
     if (!fromS || !toS) continue;
     const coords = buildFlightPathCoords([fromS.lng, fromS.lat], [toS.lng, toS.lat]);
     const c = (a.color || "#00ff6a");
+    const renderOpacity = opacityByArrowId.get(a.id) ?? 1;
     features.push({
       type:"Feature",
-      properties:{ id:a.id, color:c, colorLower: normalizeLegendColor(c) },
+      properties:{ id:a.id, color:c, colorLower: normalizeLegendColor(c), renderOpacity },
       geometry:{ type:"LineString", coordinates: coords }
     });
   }
@@ -6586,6 +6657,7 @@ function arrowsToGeoJSON(){
 
 function arrowHeadsToGeoJSON(){
   const features = [];
+  const opacityByArrowId = buildArrowChronologyOpacityMap();
   for (const a of arrows){
     const fromS = strikes.find(s => s.id === a.fromId);
     const toS   = strikes.find(s => s.id === a.toId);
@@ -6596,9 +6668,10 @@ function arrowHeadsToGeoJSON(){
     const p1 = coords[coords.length-1];
     const ang = bearingDegrees(p0, p1);
     const c = (a.color || "#00ff6a");
+    const renderOpacity = opacityByArrowId.get(a.id) ?? 1;
     features.push({
       type:"Feature",
-      properties:{ id:a.id, color:c, colorLower: normalizeLegendColor(c), angle: ang },
+      properties:{ id:a.id, color:c, colorLower: normalizeLegendColor(c), angle: ang, renderOpacity },
       geometry:{ type:"Point", coordinates: p1 }
     });
   }
@@ -6615,47 +6688,8 @@ function refreshArrowSources(){
 }
 
 function applyFlightOpacity(){
-  const o = flightOpacityOverrideEnabled ? flightOpacityMasterValue : flightOpacityForZoom(map.getZoom());
-  if (map.getLayer("flightPaths-line")) map.setPaintProperty("flightPaths-line", "line-opacity", o);
-  if (map.getLayer("flightPaths-arrows")) map.setPaintProperty("flightPaths-arrows", "text-opacity", o);
-  if (map.getLayer("flightPaths-head")) map.setPaintProperty("flightPaths-head", "text-opacity", o);
+  refreshArrowSources();
 }
-
-function syncFlightOpacityMasterUI(){
-  const pct = Math.round(flightOpacityMasterValue * 100);
-  flightOpacityMaster.value = String(pct);
-  flightOpacityMasterVal.textContent = `${pct}%`;
-  if (viewerFlightOpacity) viewerFlightOpacity.value = String(pct);
-  if (viewerFlightOpacityVal) viewerFlightOpacityVal.textContent = `${pct}%`;
-  btnFlightOpacityKill.textContent = flightOpacityOverrideEnabled ? "KILL SWITCH: OVERRIDE ON" : "KILL SWITCH: NORMAL";
-  btnFlightOpacityKill.classList.toggle("ghost", !flightOpacityOverrideEnabled);
-}
-
-flightOpacityMaster.addEventListener("input", () => {
-  flightOpacityMasterValue = Math.max(0, Math.min(1, Number(flightOpacityMaster.value) / 100));
-  flightOpacityOverrideEnabled = true;
-  syncFlightOpacityMasterUI();
-  applyFlightOpacity();
-  setStateStatus(`path opacity override ${Math.round(flightOpacityMasterValue * 100)}%`);
-});
-
-btnFlightOpacityKill.addEventListener("click", () => {
-  flightOpacityOverrideEnabled = false;
-  syncFlightOpacityMasterUI();
-  applyFlightOpacity();
-  setStateStatus("path opacity returned to normal");
-});
-if (viewerFlightOpacity){
-  viewerFlightOpacity.addEventListener("input", () => {
-    flightOpacityMasterValue = Math.max(0, Math.min(1, Number(viewerFlightOpacity.value) / 100));
-    flightOpacityOverrideEnabled = true;
-    syncFlightOpacityMasterUI();
-    applyFlightOpacity();
-    setStateStatus(`path opacity override ${Math.round(flightOpacityMasterValue * 100)}%`);
-  });
-}
-
-syncFlightOpacityMasterUI();
 
 function addArrow(fromId, toId, color="#00ff6a"){
   if (!fromId || !toId || fromId === toId) return;
@@ -7129,7 +7163,6 @@ window.addEventListener("mouseup", endDragging);
 
 map.on("zoom", () => {
   updateTargetIconScaling();
-  applyFlightOpacity();
   refreshTextBoxOpacities();
 });
 map.on("move", refreshTextBoxOpacities);
@@ -8064,6 +8097,8 @@ function closeStrikeModal(){
   modalImages.value = "";
   sectionImages.classList.remove("active");
   modalSnapshotBeforeEdit = null;
+  refreshArrowSources();
+  renderStatsTimeline();
 }
 document.getElementById("btnCloseModal").addEventListener("click", closeStrikeModal);
 modalWrap.addEventListener("click", (e) => { if (e.target === modalWrap) closeStrikeModal(); });
@@ -8607,11 +8642,15 @@ modalNotes.addEventListener("input", () => {
   if (detected && (dateEmpty || allowAutofill)){
     modalDate.value = detected;
     modalDate.dataset.autofill = "1";
+    refreshArrowSources();
+    renderStatsTimeline();
   }
 });
 modalDate.addEventListener("input", () => {
   // Manual date edit turns off notes-driven overwrite.
   modalDate.dataset.autofill = "0";
+  refreshArrowSources();
+  renderStatsTimeline();
 });
 
 /************ IMAGES ************/
@@ -8855,6 +8894,7 @@ const SERVER_STATE_API = "/api/state";
 const STRIKE_IMAGES_API = "/api/strike-images";
 const SERVER_AUTOSAVE_ENABLED = true;
 const SERVER_AUTOSAVE_DEBOUNCE_MS = 1800;
+const LOCAL_AUTOSAVE_DEBOUNCE_MS = ("ontouchstart" in window || navigator.maxTouchPoints > 0) ? 700 : 450;
 const LIVE_STATE_POLL_MS = 2500;
 var iranOrgChartEl = document.getElementById("iranOrgChart");
 const orgImgTools = document.getElementById("orgImgTools");
@@ -8876,6 +8916,9 @@ let currentHtmlFileHandle = null;
 let serverAutosaveTimer = null;
 let serverAutosaveInFlight = false;
 let serverAutosaveQueued = false;
+let localAutosaveTimer = null;
+let localAutosaveQueued = false;
+let localAutosaveNeedsServer = false;
 let suppressServerAutosave = canUseServerState();
 let liveStatePollTimer = null;
 let liveStatePollInFlight = false;
@@ -9397,15 +9440,37 @@ function serializeStateObject(){
     statsTimeline: deepClone(statsTimelineState)
   };
 }
-function autosaveLocal(options = {}){
+function flushLocalAutosaveNow(options = {}){
   const skipServer = !!options.skipServer;
+  if (localAutosaveTimer){
+    clearTimeout(localAutosaveTimer);
+    localAutosaveTimer = null;
+  }
+  const shouldSave = localAutosaveQueued || !!options.force;
+  const shouldSyncServer = localAutosaveNeedsServer && !skipServer;
+  localAutosaveQueued = false;
+  localAutosaveNeedsServer = false;
+  if (!shouldSave) return;
   try{
     localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(serializeStateObject()));
     setStateStatus("autosaved locally");
-    if (!skipServer) scheduleServerAutosave();
+    if (shouldSyncServer) scheduleServerAutosave();
   }catch{
     setStateStatus("local autosave failed");
   }
+}
+function autosaveLocal(options = {}){
+  const skipServer = !!options.skipServer;
+  if (options.immediate){
+    localAutosaveQueued = true;
+    if (!skipServer) localAutosaveNeedsServer = true;
+    flushLocalAutosaveNow({ skipServer, force:true });
+    return;
+  }
+  localAutosaveQueued = true;
+  if (!skipServer) localAutosaveNeedsServer = true;
+  if (localAutosaveTimer) clearTimeout(localAutosaveTimer);
+  localAutosaveTimer = setTimeout(() => flushLocalAutosaveNow({ skipServer:false }), LOCAL_AUTOSAVE_DEBOUNCE_MS);
 }
 
 async function fetchServerState(opts = {}){
@@ -9492,6 +9557,9 @@ async function flushServerAutosaveNow(){
     serverAutosaveInFlight = false;
   }
 }
+window.addEventListener("beforeunload", () => {
+  flushLocalAutosaveNow({ skipServer:false });
+});
 function startLiveStatePolling(){
   if (!canUseServerState()) return;
   if (liveStatePollTimer) clearInterval(liveStatePollTimer);
@@ -10097,8 +10165,8 @@ map.on("load", async () => {
       source:"flightPaths",
       paint:{
         "line-color": ["coalesce", ["get","color"], "#00ff6a"],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 4.37, 3.8, 7, 4.6],
-        "line-opacity": 0
+        "line-width": 4.2,
+        "line-opacity": ["coalesce", ["get","renderOpacity"], 1]
       }
     });
     map.addLayer({
@@ -10109,13 +10177,13 @@ map.on("load", async () => {
         "symbol-placement":"line",
         "symbol-spacing": 105,
         "text-field":"➤",
-        "text-size": ["interpolate", ["linear"], ["zoom"], 4.37, 18, 7, 20],
+        "text-size": 19,
         "text-rotation-alignment":"map",
         "text-keep-upright": false
       },
       paint:{
         "text-color": ["coalesce", ["get","color"], "#00ff6a"],
-        "text-opacity": 0
+        "text-opacity": ["coalesce", ["get","renderOpacity"], 1]
       }
     });
     map.addLayer({
@@ -10124,14 +10192,14 @@ map.on("load", async () => {
       source:"flightArrowHeads",
       layout:{
         "text-field":"▶",
-        "text-size": ["interpolate", ["linear"], ["zoom"], 4.37, 24, 7, 28],
+        "text-size": 26,
         "text-rotate": ["get","angle"],
         "text-rotation-alignment":"map",
         "text-keep-upright": false
       },
       paint:{
         "text-color": ["coalesce", ["get","color"], "#00ff6a"],
-        "text-opacity": 0
+        "text-opacity": ["coalesce", ["get","renderOpacity"], 1]
       }
     });
 
@@ -10308,12 +10376,9 @@ map.on("load", async () => {
 });
 
 window.addEventListener("resize", () => {
-  positionCamWatermark();
   refreshTextBoxOpacities();
 });
 window.addEventListener("load", () => {
-  positionCamWatermark();
-  setTimeout(positionCamWatermark, 0);
   refreshTextBoxOpacities();
 });
 document.addEventListener("visibilitychange", () => {
