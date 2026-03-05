@@ -46,9 +46,6 @@ IP_HASH_SALT = os.getenv("IP_HASH_SALT", "retro-war-map-ip-salt-v1")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
-# Set this in your shell for production:
-#   export ADMIN_PASSWORD='your-strong-password'
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "CamHigbyAdmin2026!")
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "").strip()
 ADMIN_PASSWORD_SALT = os.getenv("ADMIN_PASSWORD_SALT", "").strip()
 ADMIN_PASSWORD_PEPPER = os.getenv("ADMIN_PASSWORD_PEPPER", "").strip()
@@ -101,22 +98,21 @@ def verify_admin_password(candidate_password: str) -> bool:
     candidate = str(candidate_password or "")
     expected_hash = str(ADMIN_PASSWORD_HASH or "").strip()
     pepper = str(ADMIN_PASSWORD_PEPPER or "")
+    if not expected_hash:
+        return False
     # Preferred mode: structured hash string pbkdf2_sha256$<iterations>$<salt>$<hex>
-    if expected_hash:
-        try:
-            if expected_hash.startswith("pbkdf2_sha256$"):
-                _alg, it_s, salt_s, hex_s = expected_hash.split("$", 3)
-                derived = derive_admin_password_hex(candidate, salt_s, int(it_s), pepper=pepper)
-                return hmac.compare_digest(derived, hex_s.strip().lower())
-            # Compatible mode: hash in ADMIN_PASSWORD_HASH + separate salt/iter env vars
-            if ADMIN_PASSWORD_SALT:
-                derived = derive_admin_password_hex(candidate, ADMIN_PASSWORD_SALT, ADMIN_PASSWORD_PBKDF2_ITER, pepper=pepper)
-                return hmac.compare_digest(derived, expected_hash.lower())
-            return False
-        except Exception:
-            return False
-    # Legacy fallback for existing installs.
-    return hmac.compare_digest(candidate, str(ADMIN_PASSWORD or ""))
+    try:
+        if expected_hash.startswith("pbkdf2_sha256$"):
+            _alg, it_s, salt_s, hex_s = expected_hash.split("$", 3)
+            derived = derive_admin_password_hex(candidate, salt_s, int(it_s), pepper=pepper)
+            return hmac.compare_digest(derived, hex_s.strip().lower())
+        # Compatible mode: hash in ADMIN_PASSWORD_HASH + separate salt/iter env vars
+        if ADMIN_PASSWORD_SALT:
+            derived = derive_admin_password_hex(candidate, ADMIN_PASSWORD_SALT, ADMIN_PASSWORD_PBKDF2_ITER, pepper=pepper)
+            return hmac.compare_digest(derived, expected_hash.lower())
+        return False
+    except Exception:
+        return False
 
 
 def prune_sessions() -> None:
@@ -2143,8 +2139,7 @@ def main():
     port = int(os.getenv("PORT", "8000"))
     server = ThreadingHTTPServer((host, port), AppHandler)
     print(f"Serving on http://{host}:{port}")
-    print("Set ADMIN_USERNAME and preferably ADMIN_PASSWORD_HASH (PBKDF2) for production.")
-    print("Legacy ADMIN_PASSWORD is supported but less secure.")
+    print("Set ADMIN_USERNAME and ADMIN_PASSWORD_HASH (PBKDF2) for production.")
     print(f"State file: {STATE_FILE}")
     server.serve_forever()
 
