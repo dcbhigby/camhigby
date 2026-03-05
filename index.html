@@ -2526,7 +2526,12 @@ const pullRefreshHint = document.getElementById("pullRefreshHint");
 const legendBoxEl = document.getElementById("legendBox");
 const legendColorItems = Array.from(document.querySelectorAll("#legendBox .legendItem.toggleable"));
 const activeLegendColorFilter = new Set();
-function setStateStatus(msg){ netStatus.textContent = `STATE: ${msg}`; }
+function setStateStatus(msg){
+  if (!netStatus) return;
+  const next = `STATE: ${msg}`;
+  if (netStatus.textContent === next) return;
+  netStatus.textContent = next;
+}
 function isRenderableImageSrc(src){
   if (typeof src !== "string") return false;
   const s = src.trim();
@@ -7459,7 +7464,15 @@ function sanitizeTimelineEvents(list){
 }
 function buildStrikeSearchText(s){
   const hasImages = Array.isArray(s.images) && s.images.length ? " hasimage " : " noimage ";
-  const timeline = sanitizeTimelineEvents(s?.timelineEvents).map((it) => `${it.at} ${it.text}`).join(" ");
+  const timelineEvents = Array.isArray(s?.timelineEvents) ? s.timelineEvents : [];
+  let timeline = "";
+  for (let i = 0; i < timelineEvents.length && i < 80; i++){
+    const it = timelineEvents[i] || {};
+    const at = typeof it.at === "string" ? it.at.slice(0, 80) : "";
+    const text = typeof it.text === "string" ? it.text.slice(0, 400) : "";
+    if (!at.trim() && !text.trim()) continue;
+    timeline += ` ${at} ${text}`;
+  }
   return normalizeText(`${s.title||""} ${s.notes||""} ${s.eventDate||""} ${timeline} ${s.createdAt||""} ${s.icon||""} ${hasImages}`);
 }
 
@@ -7503,8 +7516,11 @@ function applyStrikeSearch(){
   }
 }
 
-strikeSearchBox.addEventListener("input", applyStrikeSearch);
-strikeSearchBox.addEventListener("input", syncViewerSearchUI);
+function onStrikeSearchInput(){
+  applyStrikeSearch();
+  syncViewerSearchUI();
+}
+strikeSearchBox.addEventListener("input", onStrikeSearchInput);
 btnClearStrikeSearch.addEventListener("click", () => { strikeSearchBox.value=""; applyStrikeSearch(); });
 strikeSearchBox.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
@@ -7523,8 +7539,9 @@ btnFocusNext.addEventListener("click", () => {
 });
 if (viewerStrikeSearch){
   viewerStrikeSearch.addEventListener("input", () => {
+    if (strikeSearchBox.value === viewerStrikeSearch.value) return;
     strikeSearchBox.value = viewerStrikeSearch.value;
-    applyStrikeSearch();
+    onStrikeSearchInput();
   });
   viewerStrikeSearch.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
