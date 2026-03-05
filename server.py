@@ -46,6 +46,7 @@ IP_HASH_SALT = os.getenv("IP_HASH_SALT", "retro-war-map-ip-salt-v1")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "").strip()
 ADMIN_PASSWORD_SALT = os.getenv("ADMIN_PASSWORD_SALT", "").strip()
 ADMIN_PASSWORD_PEPPER = os.getenv("ADMIN_PASSWORD_PEPPER", "").strip()
@@ -99,7 +100,9 @@ def verify_admin_password(candidate_password: str) -> bool:
     expected_hash = str(ADMIN_PASSWORD_HASH or "").strip()
     pepper = str(ADMIN_PASSWORD_PEPPER or "")
     if not expected_hash:
-        return False
+        # Compatibility fallback: allow env-based plaintext password when hash mode is not configured.
+        legacy = str(ADMIN_PASSWORD or "")
+        return bool(legacy) and hmac.compare_digest(candidate, legacy)
     # Preferred mode: structured hash string pbkdf2_sha256$<iterations>$<salt>$<hex>
     try:
         if expected_hash.startswith("pbkdf2_sha256$"):
@@ -2140,6 +2143,7 @@ def main():
     server = ThreadingHTTPServer((host, port), AppHandler)
     print(f"Serving on http://{host}:{port}")
     print("Set ADMIN_USERNAME and ADMIN_PASSWORD_HASH (PBKDF2) for production.")
+    print("Compatibility fallback: ADMIN_PASSWORD is accepted only when hash is not configured.")
     print(f"State file: {STATE_FILE}")
     server.serve_forever()
 
