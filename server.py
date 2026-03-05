@@ -32,6 +32,7 @@ DEFAULT_MANUAL_REPORTS_FILE = Path("/var/data/manual_reports.json") if Path("/va
 MANUAL_REPORTS_FILE = Path(os.getenv("MANUAL_REPORTS_FILE", str(DEFAULT_MANUAL_REPORTS_FILE)))
 DEFAULT_STRIKE_REPORTS_FILE = Path("/var/data/strike_reports.json") if Path("/var/data").exists() else (ROOT_DIR / "strike_reports.json")
 STRIKE_REPORTS_FILE = Path(os.getenv("STRIKE_REPORTS_FILE", str(DEFAULT_STRIKE_REPORTS_FILE)))
+MAX_STRIKE_REPORTS = int(os.getenv("MAX_STRIKE_REPORTS", "5000"))
 VIEWER_EMAIL_COOKIE = "viewer_gate_pass"
 VIEWER_EMAIL_TTL_SECONDS = int(os.getenv("VIEWER_EMAIL_TTL_SECONDS", str(30 * 24 * 60 * 60)))
 IP_HASH_SALT = os.getenv("IP_HASH_SALT", "retro-war-map-ip-salt-v1")
@@ -245,8 +246,11 @@ class AppHandler(SimpleHTTPRequestHandler):
             state_payload = read_state_payload()
             state_obj = state_payload.get("state", {}) if isinstance(state_payload, dict) else {}
             strikes = state_obj.get("strikes", []) if isinstance(state_obj, dict) else []
+            strike_reports = read_strike_reports(limit=MAX_STRIKE_REPORTS)
+            pending_reports = [x for x in strike_reports if str(x.get("status", "pending")) == "pending"]
             viewer_email_file = str(VIEWER_EMAIL_FILE)
             state_file = str(STATE_FILE)
+            strike_reports_file = str(STRIKE_REPORTS_FILE)
             self.end_json(
                 HTTPStatus.OK,
                 {
@@ -258,6 +262,10 @@ class AppHandler(SimpleHTTPRequestHandler):
                     "stateFile": state_file,
                     "statePersistent": state_file.startswith("/var/data/"),
                     "strikeCount": len(strikes) if isinstance(strikes, list) else 0,
+                    "strikeReportsFile": strike_reports_file,
+                    "strikeReportsPersistent": strike_reports_file.startswith("/var/data/"),
+                    "strikeReportsCount": len(strike_reports),
+                    "strikeReportsPendingCount": len(pending_reports),
                 },
             )
             return
@@ -501,8 +509,16 @@ class AppHandler(SimpleHTTPRequestHandler):
                     },
                 )
                 return
+            preserved_reports = existing.get("strikeReports", []) if isinstance(existing, dict) else []
+            if not isinstance(preserved_reports, list):
+                preserved_reports = read_strike_reports(limit=MAX_STRIKE_REPORTS)
             saved_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-            payload = {"ok": True, "savedAt": saved_at, "state": state}
+            payload = {
+                "ok": True,
+                "savedAt": saved_at,
+                "state": state,
+                "strikeReports": sanitize_strike_reports(preserved_reports, limit=MAX_STRIKE_REPORTS),
+            }
             try:
                 write_state_payload(payload)
             except Exception as exc:
@@ -766,11 +782,15 @@ def read_state_payload():
             state = data.get("state")
             if not isinstance(state, dict):
                 continue
-            return {
+            out = {
                 "ok": True,
                 "savedAt": data.get("savedAt"),
                 "state": state,
             }
+            strike_reports = data.get("strikeReports")
+            if isinstance(strike_reports, list):
+                out["strikeReports"] = sanitize_strike_reports(strike_reports, limit=MAX_STRIKE_REPORTS)
+            return out
         return None
     except Exception:
         return None
@@ -1019,28 +1039,84 @@ def clear_manual_reports():
     tmp.replace(MANUAL_REPORTS_FILE)
 
 
+def sanitize_strike_reports(items, limit: int = MAX_STRIKE_REPORTS) -> list:
+    if not isinstance(items, list):
+        return []
+    out = []
+    seen = set()
+    for x in items:
+        if not isinstance(x, dict):
+            continue
+        rid = str(x.get("id", "")).strip()
+        if not rid or rid in seen:
+            continue
+        seen.add(rid)
+        item = dict(x)
+        item["id"] = rid
+        try:
+            item["createdAtTs"] = int(item.get("createdAtTs", 0))
+        except Exception:
+            item["createdAtTs"] = 0
+        status = str(item.get("status", "pending")).strip().lower()
+        item["status"] = status if status in {"pending", "approved", "rejected"} else "pending"
+        out.append(item)
+    out.sort(key=lambda x: int(x.get("createdAtTs", 0)), reverse=True)
+    if limit > 0 and len(out) > limit:
+        out = out[:limit]
+    return out
+
+
+def _read_strike_reports_from_file() -> list:
+    if not STRIKE_REPORTS_FILE.exists():
+        return []
+    raw = STRIKE_REPORTS_FILE.read_text(encoding="utf-8")
+    if not raw.strip():
+        return []
+    data = json.loads(raw)
+    return sanitize_strike_reports(data, limit=MAX_STRIKE_REPORTS)
+
+
+def _read_embedded_strike_reports() -> list:
+    payload = read_state_payload()
+    if not isinstance(payload, dict):
+        return []
+    return sanitize_strike_reports(payload.get("strikeReports", []), limit=MAX_STRIKE_REPORTS)
+
+
 def read_strike_reports(limit: int = 1000) -> list:
     try:
-        if not STRIKE_REPORTS_FILE.exists():
-            return []
-        raw = STRIKE_REPORTS_FILE.read_text(encoding="utf-8")
-        if not raw.strip():
-            return []
-        data = json.loads(raw)
-        if not isinstance(data, list):
-            return []
-        items = [x for x in data if isinstance(x, dict)]
+        by_id = {}
+        for item in _read_embedded_strike_reports():
+            by_id[str(item.get("id"))] = item
+        for item in _read_strike_reports_from_file():
+            rid = str(item.get("id"))
+            cur = by_id.get(rid)
+            if cur is None:
+                by_id[rid] = item
+                continue
+            if int(item.get("createdAtTs", 0)) >= int(cur.get("createdAtTs", 0)):
+                by_id[rid] = item
+        items = list(by_id.values())
         items.sort(key=lambda x: int(x.get("createdAtTs", 0)), reverse=True)
-        return items[:limit]
+        if limit > 0:
+            return items[:limit]
+        return items
     except Exception:
         return []
 
 
 def write_strike_reports(items: list):
+    normalized = sanitize_strike_reports(items, limit=MAX_STRIKE_REPORTS)
     STRIKE_REPORTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     tmp = STRIKE_REPORTS_FILE.with_suffix(STRIKE_REPORTS_FILE.suffix + ".tmp")
-    tmp.write_text(json.dumps(items, separators=(",", ":")), encoding="utf-8")
+    tmp.write_text(json.dumps(normalized, separators=(",", ":")), encoding="utf-8")
     tmp.replace(STRIKE_REPORTS_FILE)
+    # Mirror strike reports into the live state payload so regular state saves do not drop them.
+    state_payload = read_state_payload()
+    if isinstance(state_payload, dict) and isinstance(state_payload.get("state"), dict):
+        mirrored = dict(state_payload)
+        mirrored["strikeReports"] = normalized
+        write_state_payload(mirrored)
 
 
 def normalize_strike_report(payload: dict):
@@ -1100,18 +1176,18 @@ def normalize_strike_report(payload: dict):
 
 
 def append_strike_report(report: dict):
-    existing = read_strike_reports(limit=5000)
+    existing = read_strike_reports(limit=MAX_STRIKE_REPORTS)
     by_id = {str(x.get("id")): x for x in existing if x.get("id")}
     by_id[str(report.get("id"))] = report
     merged = list(by_id.values())
     merged.sort(key=lambda x: int(x.get("createdAtTs", 0)))
-    if len(merged) > 5000:
-        merged = merged[-5000:]
+    if len(merged) > MAX_STRIKE_REPORTS:
+        merged = merged[-MAX_STRIKE_REPORTS:]
     write_strike_reports(merged)
 
 
 def resolve_strike_report(report_id: str, status: str):
-    items = read_strike_reports(limit=5000)
+    items = read_strike_reports(limit=MAX_STRIKE_REPORTS)
     found = None
     now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     for it in items:
