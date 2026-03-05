@@ -8386,7 +8386,7 @@ function applyModalSectionOrder(isNewStrike){
   });
 }
 
-function openStrikeModal(id, opts = {}){
+async function openStrikeModal(id, opts = {}){
   const s = strikes.find(x => x.id === id);
   if (!s) return;
   activeStrikeId = id;
@@ -8413,6 +8413,21 @@ function openStrikeModal(id, opts = {}){
   modalSelectedRotationDeg = clampRotationDeg(s.rotationDeg);
   modalTimelineEnabled = !!s.timelineEnabled;
   modalTimelineEvents = sanitizeTimelineEvents(s.timelineEvents);
+
+  // If this strike came from lite state and images were omitted, fetch images on demand.
+  const expectedImageCount = Number.isFinite(+s.imageCount) ? Math.max(0, +s.imageCount) : 0;
+  if (!Array.isArray(s.images)) s.images = [];
+  if (canUseServerState() && s.images.length === 0 && expectedImageCount > 0){
+    try{
+      const fetched = await fetchStrikeImagesById(s.id);
+      if (Array.isArray(fetched) && fetched.length){
+        s.images = fetched;
+        strikeImageCache.set(String(s.id), fetched.slice());
+      }
+    }catch{
+      // Leave modal usable even if image fetch fails.
+    }
+  }
 
   renderModalColorBar();
   renderModalIconBar();
@@ -8795,6 +8810,7 @@ document.getElementById("btnClear").addEventListener("click", () => {
 /************ SAVE/OPEN + EXPORT/IMPORT ************/
 const LOCAL_AUTOSAVE_KEY = "retroWarMap.autosave.v3";
 const SERVER_STATE_API = "/api/state";
+const STRIKE_IMAGES_API = "/api/strike-images";
 const SERVER_AUTOSAVE_ENABLED = true;
 const SERVER_AUTOSAVE_DEBOUNCE_MS = 1800;
 const LIVE_STATE_POLL_MS = 2500;
@@ -8822,9 +8838,19 @@ let suppressServerAutosave = canUseServerState();
 let liveStatePollTimer = null;
 let liveStatePollInFlight = false;
 let lastServerSavedAt = "";
+const strikeImageCache = new Map();
 
 function canUseServerState(){
   return window.location.protocol !== "file:";
+}
+async function fetchStrikeImagesById(strikeId){
+  const id = String(strikeId || "").trim();
+  if (!id || !canUseServerState()) return [];
+  const res = await fetch(`${STRIKE_IMAGES_API}?id=${encodeURIComponent(id)}`, { method:"GET", credentials:"same-origin" });
+  if (!res.ok) throw new Error(`strike image fetch failed (${res.status})`);
+  const data = await res.json();
+  const images = Array.isArray(data?.images) ? data.images.filter((x) => typeof x === "string" && x.startsWith("data:image/")) : [];
+  return images;
 }
 function clampOrgImageZoom(v){
   const n = Number(v);
@@ -9473,6 +9499,12 @@ async function publishLiveDefaultState(){
 
 function loadFromObject(obj, options = {}){
   const preserveMapView = !!options.preserveMapView;
+  for (const s of strikes){
+    if (!s || !s.id) continue;
+    if (Array.isArray(s.images) && s.images.length){
+      strikeImageCache.set(String(s.id), s.images.slice());
+    }
+  }
   selectedStrikeIds.clear();
   barChartsState = sanitizeBarChartsState(obj?.barCharts, obj?.barChart);
   graph3State = sanitizeGraph3State(obj?.graph3);
@@ -9500,7 +9532,13 @@ function loadFromObject(obj, options = {}){
         : (extractDateFromNotesText(s.notes || "") || ""),
       title: s.title || "",
       notes: s.notes || "",
-      images: Array.isArray(s.images) ? s.images.filter(x => typeof x === "string" && x.startsWith("data:image/")) : [],
+      images: (() => {
+        const inline = Array.isArray(s.images) ? s.images.filter(x => typeof x === "string" && x.startsWith("data:image/")) : [];
+        if (inline.length) return inline;
+        const cached = strikeImageCache.get(String(s.id || ""));
+        return Array.isArray(cached) ? cached.slice() : [];
+      })(),
+      imageCount: Number.isFinite(+s.imageCount) ? Math.max(0, +s.imageCount) : (Array.isArray(s.images) ? s.images.length : 0),
       timelineEnabled: !!s.timelineEnabled,
       timelineEvents: sanitizeTimelineEvents(s.timelineEvents),
       createdAt: s.createdAt || new Date().toISOString()

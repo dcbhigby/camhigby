@@ -272,6 +272,26 @@ class AppHandler(SimpleHTTPRequestHandler):
                     payload = make_lite_state_payload(payload)
                 self.end_json(HTTPStatus.OK, payload)
             return
+        if path == "/api/strike-images":
+            q = parse_qs(parsed.query or "")
+            strike_id = str(q.get("id", [""])[0]).strip()
+            if not strike_id:
+                self.end_json(HTTPStatus.BAD_REQUEST, {"error": "id required"})
+                return
+            payload = read_state_payload()
+            state = payload.get("state", {}) if isinstance(payload, dict) else {}
+            strikes = state.get("strikes", []) if isinstance(state, dict) else []
+            for s in strikes:
+                if not isinstance(s, dict):
+                    continue
+                if str(s.get("id", "")) != strike_id:
+                    continue
+                imgs = s.get("images")
+                images = [x for x in imgs if isinstance(x, str) and x.startswith("data:image/")] if isinstance(imgs, list) else []
+                self.end_json(HTTPStatus.OK, {"ok": True, "id": strike_id, "images": images, "count": len(images)})
+                return
+            self.end_json(HTTPStatus.NOT_FOUND, {"error": "strike not found"})
+            return
         if path == "/api/x-recent-reports":
             q = parse_qs(parsed.query or "")
             query = str(q.get("query", [""])[0]).strip()
