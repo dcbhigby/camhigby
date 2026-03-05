@@ -4,6 +4,7 @@ import os
 import secrets
 import time
 import hashlib
+import hmac
 import re
 import gzip
 import html
@@ -48,6 +49,10 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
 # Set this in your shell for production:
 #   export ADMIN_PASSWORD='your-strong-password'
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "CamHigbyAdmin2026!")
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "").strip()
+ADMIN_PASSWORD_SALT = os.getenv("ADMIN_PASSWORD_SALT", "").strip()
+ADMIN_PASSWORD_PEPPER = os.getenv("ADMIN_PASSWORD_PEPPER", "").strip()
+ADMIN_PASSWORD_PBKDF2_ITER = int(os.getenv("ADMIN_PASSWORD_PBKDF2_ITER", "310000"))
 COOKIE_NAME = "admin_session"
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "43200"))  # 12 hours
 COOKIE_SECURE_MODE = os.getenv("COOKIE_SECURE", "auto").strip().lower()
@@ -83,6 +88,35 @@ VIEWER_EMAIL_RATE_MAX_ATTEMPTS = int(os.getenv("VIEWER_EMAIL_RATE_MAX_ATTEMPTS",
 
 def now_ts() -> int:
     return int(time.time())
+
+
+def derive_admin_password_hex(password: str, salt: str, iterations: int, pepper: str = "") -> str:
+    pwd = f"{password}{pepper}".encode("utf-8")
+    salt_b = str(salt).encode("utf-8")
+    dk = hashlib.pbkdf2_hmac("sha256", pwd, salt_b, max(1, int(iterations)))
+    return dk.hex()
+
+
+def verify_admin_password(candidate_password: str) -> bool:
+    candidate = str(candidate_password or "")
+    expected_hash = str(ADMIN_PASSWORD_HASH or "").strip()
+    pepper = str(ADMIN_PASSWORD_PEPPER or "")
+    # Preferred mode: structured hash string pbkdf2_sha256$<iterations>$<salt>$<hex>
+    if expected_hash:
+        try:
+            if expected_hash.startswith("pbkdf2_sha256$"):
+                _alg, it_s, salt_s, hex_s = expected_hash.split("$", 3)
+                derived = derive_admin_password_hex(candidate, salt_s, int(it_s), pepper=pepper)
+                return hmac.compare_digest(derived, hex_s.strip().lower())
+            # Compatible mode: hash in ADMIN_PASSWORD_HASH + separate salt/iter env vars
+            if ADMIN_PASSWORD_SALT:
+                derived = derive_admin_password_hex(candidate, ADMIN_PASSWORD_SALT, ADMIN_PASSWORD_PBKDF2_ITER, pepper=pepper)
+                return hmac.compare_digest(derived, expected_hash.lower())
+            return False
+        except Exception:
+            return False
+    # Legacy fallback for existing installs.
+    return hmac.compare_digest(candidate, str(ADMIN_PASSWORD or ""))
 
 
 def prune_sessions() -> None:
@@ -573,7 +607,9 @@ class AppHandler(SimpleHTTPRequestHandler):
             body = self.read_json_body()
             username = str(body.get("username", "")).strip().lower()
             password = str(body.get("password", ""))
-            if username != str(ADMIN_USERNAME).strip().lower() or password != ADMIN_PASSWORD:
+            valid_user = hmac.compare_digest(username, str(ADMIN_USERNAME).strip().lower())
+            valid_pass = verify_admin_password(password)
+            if not (valid_user and valid_pass):
                 login_record_failure(client_ip)
                 self.end_json(HTTPStatus.UNAUTHORIZED, {"error": "invalid credentials"})
                 return
@@ -2107,7 +2143,8 @@ def main():
     port = int(os.getenv("PORT", "8000"))
     server = ThreadingHTTPServer((host, port), AppHandler)
     print(f"Serving on http://{host}:{port}")
-    print("Set ADMIN_USERNAME / ADMIN_PASSWORD env vars for production.")
+    print("Set ADMIN_USERNAME and preferably ADMIN_PASSWORD_HASH (PBKDF2) for production.")
+    print("Legacy ADMIN_PASSWORD is supported but less secure.")
     print(f"State file: {STATE_FILE}")
     server.serve_forever()
 
