@@ -50,7 +50,7 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "camhigby")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "CamHigbyAdmin2026!")
 COOKIE_NAME = "admin_session"
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "43200"))  # 12 hours
-COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0") == "1"
+COOKIE_SECURE_MODE = os.getenv("COOKIE_SECURE", "auto").strip().lower()
 APP_REV = os.getenv("APP_REV", os.getenv("RENDER_GIT_COMMIT", "dev"))[:40]
 AI_IMAGE_DETECT_PROVIDER = os.getenv("AI_IMAGE_DETECT_PROVIDER", "sightengine").strip().lower()
 SIGHTENGINE_API_USER = os.getenv("SIGHTENGINE_API_USER", "").strip()
@@ -66,6 +66,19 @@ OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "12"))
 
 SESSIONS = {}  # token -> expiry_unix_ts
 STATE_WRITE_LOCK = threading.Lock()
+RATE_LIMIT_LOCK = threading.Lock()
+RATE_LIMIT_STATE = {}  # (bucket, key) -> [timestamps]
+LOGIN_FAIL_LOCK = threading.Lock()
+LOGIN_FAIL_STATE = {}  # ip -> {"fails": int, "lock_until": int}
+
+LOGIN_RATE_WINDOW_SEC = int(os.getenv("LOGIN_RATE_WINDOW_SEC", "300"))
+LOGIN_RATE_MAX_ATTEMPTS = int(os.getenv("LOGIN_RATE_MAX_ATTEMPTS", "20"))
+LOGIN_LOCK_FAIL_THRESHOLD = int(os.getenv("LOGIN_LOCK_FAIL_THRESHOLD", "5"))
+LOGIN_LOCK_DURATION_SEC = int(os.getenv("LOGIN_LOCK_DURATION_SEC", "900"))
+STRIKE_REPORT_RATE_WINDOW_SEC = int(os.getenv("STRIKE_REPORT_RATE_WINDOW_SEC", "300"))
+STRIKE_REPORT_RATE_MAX_ATTEMPTS = int(os.getenv("STRIKE_REPORT_RATE_MAX_ATTEMPTS", "6"))
+VIEWER_EMAIL_RATE_WINDOW_SEC = int(os.getenv("VIEWER_EMAIL_RATE_WINDOW_SEC", "300"))
+VIEWER_EMAIL_RATE_MAX_ATTEMPTS = int(os.getenv("VIEWER_EMAIL_RATE_MAX_ATTEMPTS", "12"))
 
 
 def now_ts() -> int:
@@ -77,6 +90,59 @@ def prune_sessions() -> None:
     expired = [tok for tok, exp in SESSIONS.items() if exp <= now]
     for tok in expired:
         SESSIONS.pop(tok, None)
+
+
+def rate_limit_check(bucket: str, key: str, limit: int, window_sec: int):
+    if not bucket or not key or limit <= 0 or window_sec <= 0:
+        return True, 0
+    now = now_ts()
+    cutoff = now - window_sec
+    idx = (bucket, key)
+    with RATE_LIMIT_LOCK:
+        arr = RATE_LIMIT_STATE.get(idx, [])
+        arr = [t for t in arr if t > cutoff]
+        if len(arr) >= limit:
+            retry_after = max(1, window_sec - max(0, now - min(arr)))
+            RATE_LIMIT_STATE[idx] = arr
+            return False, retry_after
+        arr.append(now)
+        RATE_LIMIT_STATE[idx] = arr
+    return True, 0
+
+
+def login_lock_status(ip: str):
+    if not ip:
+        return False, 0
+    now = now_ts()
+    with LOGIN_FAIL_LOCK:
+        rec = LOGIN_FAIL_STATE.get(ip) or {}
+        lock_until = int(rec.get("lock_until", 0) or 0)
+        if lock_until > now:
+            return True, lock_until - now
+        if lock_until and lock_until <= now:
+            LOGIN_FAIL_STATE.pop(ip, None)
+    return False, 0
+
+
+def login_record_failure(ip: str):
+    if not ip:
+        return
+    now = now_ts()
+    with LOGIN_FAIL_LOCK:
+        rec = LOGIN_FAIL_STATE.get(ip) or {"fails": 0, "lock_until": 0}
+        fails = int(rec.get("fails", 0)) + 1
+        lock_until = int(rec.get("lock_until", 0) or 0)
+        if fails >= LOGIN_LOCK_FAIL_THRESHOLD:
+            lock_until = now + LOGIN_LOCK_DURATION_SEC
+            fails = 0
+        LOGIN_FAIL_STATE[ip] = {"fails": fails, "lock_until": lock_until}
+
+
+def login_record_success(ip: str):
+    if not ip:
+        return
+    with LOGIN_FAIL_LOCK:
+        LOGIN_FAIL_STATE.pop(ip, None)
 
 
 class AppHandler(SimpleHTTPRequestHandler):
@@ -91,6 +157,12 @@ class AppHandler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if self.is_secure_request():
+            self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         # On deploy revision change, ask browser to clear HTTP cache.
         req_path = urlparse(self.path).path
         if req_path in ("/", f"/{INDEX_FILE}"):
@@ -157,6 +229,43 @@ class AppHandler(SimpleHTTPRequestHandler):
         morsel = c.get(key)
         return morsel.value if morsel else None
 
+    def is_secure_request(self):
+        proto = str(self.headers.get("X-Forwarded-Proto", "")).split(",")[0].strip().lower()
+        if proto in {"https", "wss"}:
+            return True
+        host = str(self.headers.get("Host", "")).lower()
+        if host.startswith("localhost:") or host.startswith("127.0.0.1:"):
+            return False
+        return False
+
+    def should_secure_cookie(self):
+        if COOKIE_SECURE_MODE in {"1", "true", "yes", "on"}:
+            return True
+        if COOKIE_SECURE_MODE in {"0", "false", "no", "off"}:
+            return False
+        return self.is_secure_request()
+
+    def expected_origin_prefix(self):
+        host = str(self.headers.get("Host", "")).strip()
+        if not host:
+            return ""
+        scheme = "https" if self.is_secure_request() else "http"
+        return f"{scheme}://{host}"
+
+    def has_valid_same_origin(self):
+        expected = self.expected_origin_prefix()
+        if not expected:
+            return True
+        origin = str(self.headers.get("Origin", "")).strip()
+        referer = str(self.headers.get("Referer", "")).strip()
+        if not origin and not referer:
+            return True
+        if origin and origin.rstrip("/") == expected.rstrip("/"):
+            return True
+        if referer and referer.startswith(expected):
+            return True
+        return False
+
     def is_admin_session(self):
         prune_sessions()
         tok = self.get_cookie_token()
@@ -178,7 +287,7 @@ class AppHandler(SimpleHTTPRequestHandler):
             "SameSite=Lax",
             f"Max-Age={max_age}",
         ]
-        if COOKIE_SECURE:
+        if self.should_secure_cookie():
             parts.append("Secure")
         return "; ".join(parts)
 
@@ -190,7 +299,7 @@ class AppHandler(SimpleHTTPRequestHandler):
             "SameSite=Lax",
             f"Max-Age={max_age}",
         ]
-        if COOKIE_SECURE:
+        if self.should_secure_cookie():
             parts.append("Secure")
         return "; ".join(parts)
 
@@ -437,14 +546,38 @@ class AppHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        client_ip = self.get_client_ip() or "unknown"
+
+        same_origin_required = {
+            "/api/login",
+            "/api/logout",
+            "/api/state",
+            "/api/viewer-email",
+            "/api/strike-report",
+            "/api/strike-reports-approve",
+            "/api/strike-reports-reject",
+        }
+        if path in same_origin_required and not self.has_valid_same_origin():
+            self.end_json(HTTPStatus.FORBIDDEN, {"error": "cross-origin write blocked"})
+            return
 
         if path == "/api/login":
+            ok, retry = rate_limit_check("login", client_ip, LOGIN_RATE_MAX_ATTEMPTS, LOGIN_RATE_WINDOW_SEC)
+            if not ok:
+                self.end_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "too many login attempts", "retryAfter": retry})
+                return
+            locked, remaining = login_lock_status(client_ip)
+            if locked:
+                self.end_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "login temporarily locked", "retryAfter": remaining})
+                return
             body = self.read_json_body()
             username = str(body.get("username", "")).strip().lower()
             password = str(body.get("password", ""))
             if username != str(ADMIN_USERNAME).strip().lower() or password != ADMIN_PASSWORD:
+                login_record_failure(client_ip)
                 self.end_json(HTTPStatus.UNAUTHORIZED, {"error": "invalid credentials"})
                 return
+            login_record_success(client_ip)
             prune_sessions()
             token = secrets.token_urlsafe(32)
             SESSIONS[token] = now_ts() + SESSION_TTL_SECONDS
@@ -533,6 +666,10 @@ class AppHandler(SimpleHTTPRequestHandler):
             self.end_json(HTTPStatus.OK, {"ok": True, "savedAt": saved_at})
             return
         if path == "/api/viewer-email":
+            ok, retry = rate_limit_check("viewer-email", client_ip, VIEWER_EMAIL_RATE_MAX_ATTEMPTS, VIEWER_EMAIL_RATE_WINDOW_SEC)
+            if not ok:
+                self.end_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "too many submissions", "retryAfter": retry})
+                return
             body = self.read_json_body()
             email = str(body.get("email", "")).strip().lower()
             if not EMAIL_RE.match(email):
@@ -689,6 +826,10 @@ class AppHandler(SimpleHTTPRequestHandler):
             )
             return
         if path == "/api/strike-report":
+            ok, retry = rate_limit_check("strike-report", client_ip, STRIKE_REPORT_RATE_MAX_ATTEMPTS, STRIKE_REPORT_RATE_WINDOW_SEC)
+            if not ok:
+                self.end_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "too many report submissions", "retryAfter": retry})
+                return
             limits = get_strike_report_limits()
             raw_len = self.headers.get("Content-Length", "0")
             try:
