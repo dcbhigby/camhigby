@@ -1408,7 +1408,7 @@
     }
     .groupPopup{
       position:absolute;
-      z-index:16000;
+      z-index:17030;
       min-width: 360px;
       max-width: min(520px, calc(100% - 24px));
       border:1px solid var(--border);
@@ -6581,6 +6581,7 @@ let clipboardStrike = null;
 let draggingStrikeId = null;
 let draggingWasOpenModal = false;
 let draggingPrevPos = null;
+let draggingGroupMoves = null; // [{id,beforeLat,beforeLng,dLat,dLng}]
 
 function isModalOpen(){ return document.getElementById("modalWrap").style.display === "flex"; }
 
@@ -7109,9 +7110,32 @@ function addStrikeMarker(strike){
 
     draggingStrikeId = strike.id;
     draggingWasOpenModal = isModalOpen() && (activeStrikeId === strike.id);
+    draggingGroupMoves = null;
 
     const s = strikes.find(x => x.id === strike.id);
     draggingPrevPos = s ? { lat: s.lat, lng: s.lng } : null;
+    if (s && selectedStrikeIds.has(strike.id) && selectedStrikeIds.size > 1){
+      const ids = Array.from(selectedStrikeIds);
+      const moves = [];
+      for (const id of ids){
+        const g = strikes.find((x) => x.id === id);
+        if (!g) continue;
+        moves.push({
+          id,
+          beforeLat: g.lat,
+          beforeLng: g.lng,
+          dLat: g.lat - s.lat,
+          dLng: g.lng - s.lng
+        });
+      }
+      if (moves.length > 1){
+        draggingGroupMoves = moves;
+        for (const m of moves){
+          const ge = strikeMarkers.get(m.id);
+          if (ge?.marker?.getElement) ge.marker.getElement().style.cursor = "grabbing";
+        }
+      }
+    }
 
     map.getCanvas().style.cursor = "grabbing";
     el.style.cursor = "grabbing";
@@ -7168,21 +7192,39 @@ map.on("mousemove", (e) => {
 
   if (!draggingStrikeId) return;
 
-  const entry = strikeMarkers.get(draggingStrikeId);
-  if (!entry) return;
+  if (Array.isArray(draggingGroupMoves) && draggingGroupMoves.length > 1){
+    for (const m of draggingGroupMoves){
+      const s = strikes.find((x) => x.id === m.id);
+      const entry = strikeMarkers.get(m.id);
+      if (!s || !entry) continue;
+      const nextLat = +(e.lngLat.lat + m.dLat).toFixed(6);
+      const nextLng = +(e.lngLat.lng + m.dLng).toFixed(6);
+      s.lat = nextLat;
+      s.lng = nextLng;
+      entry.marker.setLngLat([nextLng, nextLat]);
+      entry.data = s;
+      if (draggingWasOpenModal && activeStrikeId === m.id){
+        modalLat.value = String(nextLat);
+        modalLng.value = String(nextLng);
+      }
+    }
+  } else {
+    const entry = strikeMarkers.get(draggingStrikeId);
+    if (!entry) return;
 
-  entry.marker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
+    entry.marker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
 
-  const s = strikes.find(x => x.id === draggingStrikeId);
-  if (s){
-    s.lat = +e.lngLat.lat.toFixed(6);
-    s.lng = +e.lngLat.lng.toFixed(6);
-    entry.data = s;
-  }
+    const s = strikes.find(x => x.id === draggingStrikeId);
+    if (s){
+      s.lat = +e.lngLat.lat.toFixed(6);
+      s.lng = +e.lngLat.lng.toFixed(6);
+      entry.data = s;
+    }
 
-  if (draggingWasOpenModal && activeStrikeId === draggingStrikeId){
-    modalLat.value = String(+e.lngLat.lat.toFixed(6));
-    modalLng.value = String(+e.lngLat.lng.toFixed(6));
+    if (draggingWasOpenModal && activeStrikeId === draggingStrikeId){
+      modalLat.value = String(+e.lngLat.lat.toFixed(6));
+      modalLng.value = String(+e.lngLat.lng.toFixed(6));
+    }
   }
 
   refreshArrowSources();
@@ -7195,20 +7237,46 @@ function endDragging(){
   draggingWasOpenModal = false;
 
   map.getCanvas().style.cursor = "";
-  const entry = strikeMarkers.get(id);
-  if (entry){
-    entry.marker.getElement().style.cursor = "pointer";
+  if (Array.isArray(draggingGroupMoves) && draggingGroupMoves.length > 1){
+    for (const m of draggingGroupMoves){
+      const ge = strikeMarkers.get(m.id);
+      if (ge?.marker?.getElement) ge.marker.getElement().style.cursor = "pointer";
+    }
+  } else {
+    const entry = strikeMarkers.get(id);
+    if (entry){
+      entry.marker.getElement().style.cursor = "pointer";
+    }
   }
 
-  const s = strikes.find(x => x.id === id);
-  if (s && draggingPrevPos){
-    const before = { id, lat: draggingPrevPos.lat, lng: draggingPrevPos.lng };
-    const after  = { id, lat: s.lat, lng: s.lng };
-    if (before.lat !== after.lat || before.lng !== after.lng){
-      pushUndo({ type:"move_strike", before, after });
+  if (Array.isArray(draggingGroupMoves) && draggingGroupMoves.length > 1){
+    const changes = [];
+    for (const m of draggingGroupMoves){
+      const s = strikes.find((x) => x.id === m.id);
+      if (!s) continue;
+      const before = { id: m.id, lat: m.beforeLat, lng: m.beforeLng };
+      const after = { id: m.id, lat: s.lat, lng: s.lng };
+      if (before.lat !== after.lat || before.lng !== after.lng){
+        changes.push({ before, after });
+      }
+    }
+    if (changes.length === 1){
+      pushUndo({ type:"move_strike", before: changes[0].before, after: changes[0].after });
+    } else if (changes.length > 1){
+      pushUndo({ type:"move_strike_group", changes });
+    }
+  } else {
+    const s = strikes.find(x => x.id === id);
+    if (s && draggingPrevPos){
+      const before = { id, lat: draggingPrevPos.lat, lng: draggingPrevPos.lng };
+      const after  = { id, lat: s.lat, lng: s.lng };
+      if (before.lat !== after.lat || before.lng !== after.lng){
+        pushUndo({ type:"move_strike", before, after });
+      }
     }
   }
   draggingPrevPos = null;
+  draggingGroupMoves = null;
 
   autosaveLocal();
   setStateStatus("strike moved");
@@ -7250,7 +7318,10 @@ if (btnAddTextMode){
 }
 
 map.on("click", (e) => {
-  if (e.originalEvent?.shiftKey) return;
+  if (e.originalEvent?.shiftKey){
+    clearSearchPin();
+    return;
+  }
   if (viewerReportPlacementMode && !isAdminMode()){
     const iconKeyRaw = String(viewerReportIconSelect?.value || "rocket");
     const iconKey = ["rocket", "ak47", "target", "naval"].includes(iconKeyRaw) ? iconKeyRaw : "rocket";
@@ -7317,13 +7388,47 @@ map.on("click", (e) => {
 });
 
 /************ JUMP SEARCH (Nominatim) ************/
+let searchPinMarker = null;
+function clearSearchPin(){
+  if (!searchPinMarker) return;
+  try{ searchPinMarker.remove(); }catch{}
+  searchPinMarker = null;
+}
+function placeSearchPin(lng, lat){
+  clearSearchPin();
+  const el = document.createElement("div");
+  el.style.width = "10px";
+  el.style.height = "10px";
+  el.style.borderRadius = "50%";
+  el.style.background = "rgba(255,255,255,.96)";
+  el.style.border = "1px solid rgba(0,0,0,.55)";
+  el.style.boxShadow = "0 0 0 3px rgba(255,255,255,.22), 0 0 10px rgba(255,255,255,.65)";
+  el.style.pointerEvents = "none";
+  searchPinMarker = new maplibregl.Marker({ element: el, anchor: "center" })
+    .setLngLat([lng, lat])
+    .addTo(map);
+}
+function inferSearchZoom(result){
+  const cls = String(result?.class || "").toLowerCase();
+  const typ = String(result?.type || "").toLowerCase();
+  if (["building", "amenity", "shop", "tourism", "office", "man_made"].includes(cls)) return 16.6;
+  if (["house", "building", "yes", "apartments", "hospital", "school", "university", "retail"].includes(typ)) return 16.6;
+  if (cls === "highway" || (cls === "place" && ["neighbourhood", "suburb", "quarter", "city_block"].includes(typ))) return 14.2;
+  if (cls === "boundary" || cls === "place"){
+    if (["city", "town", "municipality"].includes(typ)) return 11.2;
+    if (["state", "province", "region", "county"].includes(typ)) return 8.7;
+    if (["country", "continent"].includes(typ)) return 5.2;
+  }
+  return 13.2;
+}
 async function geocodePlace(q){
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&namedetails=1&limit=5&q=${encodeURIComponent(q)}`;
   const res = await fetch(url, { headers: { "Accept":"application/json" }});
   if (!res.ok) throw new Error("Geocoder failed");
   const js = await res.json();
   if (!Array.isArray(js) || !js.length) return null;
-  return { lat: +js[0].lat, lng: +js[0].lon };
+  const best = js[0];
+  return { lat: +best.lat, lng: +best.lon, zoom: inferSearchZoom(best) };
 }
 const searchBox = document.getElementById("searchBox");
 const btnSearch = document.getElementById("btnSearch");
@@ -7334,7 +7439,8 @@ async function executeJumpSearch(){
   try{
     const r = await geocodePlace(q);
     if (!r) { setStateStatus("no results"); return; }
-    map.easeTo({ center:[r.lng, r.lat], zoom: Math.max(map.getZoom(), 4.2), duration: 700 });
+    map.easeTo({ center:[r.lng, r.lat], zoom: Math.max(map.getZoom(), Number(r.zoom) || 13.2), duration: 700 });
+    placeSearchPin(r.lng, r.lat);
     setStateStatus("jumped");
   }catch(e){
     setStateStatus("geocode failed");
@@ -7891,8 +7997,35 @@ function showGroupPopupAt(x, y){
   const rect = host.getBoundingClientRect();
   groupPopup.style.display = "grid";
   const popupRect = groupPopup.getBoundingClientRect();
-  const left = Math.max(8, Math.min(x + 8, rect.width - popupRect.width - 8));
-  const top = Math.max(8, Math.min(y + 8, rect.height - popupRect.height - 8));
+  let left = Math.max(8, Math.min(x + 8, rect.width - popupRect.width - 8));
+  let top = Math.max(8, Math.min(y + 8, rect.height - popupRect.height - 8));
+
+  // Prefer showing this menu beside the top tab/options row instead of behind it.
+  const hudTabEl = document.getElementById("hudTab");
+  if (hudTabEl && hudTabEl.offsetParent !== null){
+    const hudRect = hudTabEl.getBoundingClientRect();
+    const hudLeft = hudRect.left - rect.left;
+    const hudRight = hudRect.right - rect.left;
+    const hudTop = hudRect.top - rect.top;
+    const hudBottom = hudRect.bottom - rect.top;
+
+    const overlapsHud =
+      left < hudRight &&
+      (left + popupRect.width) > hudLeft &&
+      top < hudBottom &&
+      (top + popupRect.height) > hudTop;
+
+    if (overlapsHud){
+      const preferredRightOfHud = hudRight + 10;
+      if (preferredRightOfHud + popupRect.width <= rect.width - 8){
+        left = preferredRightOfHud;
+        top = Math.max(8, Math.min(hudTop, rect.height - popupRect.height - 8));
+      } else {
+        top = Math.max(8, Math.min(hudBottom + 10, rect.height - popupRect.height - 8));
+      }
+    }
+  }
+
   groupPopup.style.left = `${left}px`;
   groupPopup.style.top = `${top}px`;
 }
@@ -9993,6 +10126,31 @@ function undoLast(){
     return;
   }
 
+  if (u.type === "move_strike_group"){
+    const arr = Array.isArray(u.changes) ? u.changes : [];
+    if (!arr.length){
+      setStateStatus("undo: move strikes");
+      return;
+    }
+    for (const c of arr){
+      const b = c?.before;
+      if (!b?.id) continue;
+      const s = strikes.find((x) => x.id === b.id);
+      if (!s) continue;
+      s.lat = b.lat;
+      s.lng = b.lng;
+      const entry = strikeMarkers.get(s.id);
+      if (entry){
+        entry.marker.setLngLat([s.lng, s.lat]);
+        entry.data = s;
+      }
+    }
+    refreshArrowSources();
+    autosaveLocal();
+    setStateStatus("undo: move strikes");
+    return;
+  }
+
   if (u.type === "edit_strike"){
     const b = u.before;
     const idx = strikes.findIndex(x => x.id === b.id);
@@ -10215,7 +10373,6 @@ function makeLatLngGridGeoJSON(stepDeg){
   }
   return { type:"FeatureCollection", features };
 }
-
 map.on("load", async () => {
   try{
     map.addSource("grid", { type:"geojson", data: makeLatLngGridGeoJSON(10) });
@@ -10385,9 +10542,56 @@ map.on("load", async () => {
       const states = results[1]?.status === "fulfilled" ? results[1].value : null;
       const cities = results[2]?.status === "fulfilled" ? results[2].value : null;
 
+      if (!map.getSource("satellite_imagery")){
+        map.addSource("satellite_imagery", {
+          type: "raster",
+          tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+          tileSize: 256,
+          maxzoom: 19,
+          attribution: "Esri World Imagery"
+        });
+        map.addLayer({
+          id: "satellite-imagery",
+          type: "raster",
+          source: "satellite_imagery",
+          paint: {
+            // Keep satellite hidden until close zoom, then fade in smoothly.
+            "raster-opacity": [
+              "interpolate", ["linear"], ["zoom"],
+              3.9, 0.00,
+              4.5, 0.09,
+              5.4, 0.20,
+              9.5, 0.30,
+              12.0, 0.48,
+              15.0, 0.62
+            ],
+            // Desaturate/dim so the map keeps the green tactical look.
+            "raster-saturation": -1,
+            "raster-contrast": 0.28,
+            "raster-brightness-min": 0.06,
+            "raster-brightness-max": 0.70,
+            "raster-fade-duration": 300
+          }
+        });
+      }
       if (countries && !map.getSource("countries")){
         map.addSource("countries", { type:"geojson", data:countries });
-        map.addLayer({ id:"countries-fill", type:"fill", source:"countries", paint:{ "fill-color":"rgba(0,255,106,0.14)" } });
+        map.addLayer({
+          id:"countries-fill",
+          type:"fill",
+          source:"countries",
+          paint:{
+            "fill-color":"rgb(0,255,106)",
+            // Fade out the old filled-country look as close-zoom imagery fades in.
+            "fill-opacity": [
+              "interpolate", ["linear"], ["zoom"],
+              0.5, 0.10,
+              3.0, 0.08,
+              4.6, 0.03,
+              5.6, 0.00
+            ]
+          }
+        });
         map.addLayer({ id:"countries-line", type:"line", source:"countries", paint:{ "line-color":"rgba(0,255,106,0.40)", "line-width":1.2 }});
         map.addLayer({
           id: "countries-label",
