@@ -2356,11 +2356,11 @@
           </div>
           <div class="field"><label for="reportTitle">Title</label><input id="reportTitle" type="text" /></div>
           <div class="field"><label for="reportSourceUrl">Source URL (article/post)</label><input id="reportSourceUrl" type="url" placeholder="https://example.com/article" /></div>
-          <div class="field"><label for="reportNotes">Notes</label><textarea id="reportNotes"></textarea></div>
+          <div class="field"><label for="reportNotes">Notes</label><textarea id="reportNotes" maxlength="200"></textarea></div>
           <div class="field" id="reportImagesSection">
-            <label for="reportImages">Attach images (required)</label>
+            <label for="reportImages">Attach image (required, one only)</label>
             <div class="btnRow">
-              <input id="reportImages" type="file" accept="image/*" multiple />
+              <input id="reportImages" type="file" accept="image/*" />
               <button id="btnClearReportImages" type="button" class="danger">CLEAR IMAGES</button>
             </div>
             <div id="reportImageGrid" class="thumbGrid" style="margin-top:10px;"></div>
@@ -2777,6 +2777,11 @@ const reportImageGrid = document.getElementById("reportImageGrid");
 const btnClearReportImages = document.getElementById("btnClearReportImages");
 const reportModalErr = document.getElementById("reportModalErr");
 const LOCAL_STRIKE_REPORTS_KEY = "viewerStrikeReportsQueueV1";
+const REPORT_NOTES_MAX_CHARS = 200;
+const REPORT_MAX_IMAGES = 1;
+const REPORT_IMAGE_MARGIN_BYTES = 256 * 1024;
+const REPORT_MIN_IMAGE_BYTES = 512 * 1024;
+const REPORT_MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 let securityState = { enabled:false, unlocked:true, pinHash:"" };
 let viewerOptionsOpen = false;
 let viewerReportPanelOpen = false;
@@ -3147,6 +3152,33 @@ function renderReportImageGrid(images){
     reportImageGrid.appendChild(wrap);
   });
 }
+function estimateDataUrlBytes(dataUrl){
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return 0;
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return 0;
+  const meta = dataUrl.slice(0, comma).toLowerCase();
+  const payload = dataUrl.slice(comma + 1);
+  if (meta.includes(";base64")){
+    const n = payload.trim().length;
+    let pad = 0;
+    if (payload.endsWith("==")) pad = 2;
+    else if (payload.endsWith("=")) pad = 1;
+    return Math.max(0, Math.floor((n * 3) / 4) - pad);
+  }
+  return payload.length;
+}
+function getReportImageByteLimit(){
+  let maxLive = 0;
+  for (const s of strikes || []){
+    if (!s || !Array.isArray(s.images)) continue;
+    for (const img of s.images){
+      const bytes = estimateDataUrlBytes(img);
+      if (bytes > maxLive) maxLive = bytes;
+    }
+  }
+  const dynamic = maxLive + REPORT_IMAGE_MARGIN_BYTES;
+  return Math.max(REPORT_MIN_IMAGE_BYTES, Math.min(dynamic, REPORT_MAX_IMAGE_BYTES));
+}
 function openReportModal(draft){
   if (!draft || !reportModalWrap) return;
   viewerReportDraft = draft;
@@ -3157,6 +3189,7 @@ function openReportModal(draft){
   if (reportTitle) reportTitle.value = draft.title || "";
   if (reportSourceUrl) reportSourceUrl.value = draft.sourceUrl || "";
   if (reportNotes) reportNotes.value = draft.notes || "";
+  if (reportNotes) reportNotes.maxLength = REPORT_NOTES_MAX_CHARS;
   if (reportImages) reportImages.value = "";
   if (reportModalErr) reportModalErr.textContent = "";
   renderReportImageGrid(draft.images || []);
@@ -3639,14 +3672,20 @@ if (reportImages){
   reportImages.addEventListener("change", async () => {
     if (!viewerReportDraft) return;
     const files = Array.from(reportImages.files || []).filter((f) => f && typeof f.type === "string" && f.type.startsWith("image/"));
-    for (const f of files){
+    const first = files[0];
+    if (first){
       try{
-        const dataUrl = await fileToDataURL(f);
-        if (typeof dataUrl === "string" && dataUrl.startsWith("data:image/")){
-          viewerReportDraft.images.push(dataUrl);
+        const dataUrl = await fileToDataURL(first);
+        const maxBytes = getReportImageByteLimit();
+        const bytes = estimateDataUrlBytes(dataUrl);
+        if (typeof dataUrl === "string" && dataUrl.startsWith("data:image/") && bytes > 0 && bytes <= maxBytes){
+          viewerReportDraft.images = [dataUrl];
+          if (reportModalErr) reportModalErr.textContent = "";
+        } else if (reportModalErr){
+          reportModalErr.textContent = `Image too large. Max allowed is about ${(maxBytes / (1024 * 1024)).toFixed(2)} MB.`;
         }
       }catch{
-        // continue
+        if (reportModalErr) reportModalErr.textContent = "Unable to read image file.";
       }
     }
     renderReportImageGrid(viewerReportDraft.images);
@@ -3668,8 +3707,18 @@ if (btnSubmitReport){
     const notes = String(reportNotes?.value || "").trim();
     const date = String(reportDate?.value || "").trim();
     const images = Array.isArray(viewerReportDraft.images) ? viewerReportDraft.images.filter((x) => typeof x === "string" && x.startsWith("data:image/")) : [];
-    if (!title || !notes || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !images.length){
-      if (reportModalErr) reportModalErr.textContent = "Title, notes, date, and at least one image are required.";
+    if (!title || !notes || !/^\d{4}-\d{2}-\d{2}$/.test(date) || images.length !== REPORT_MAX_IMAGES){
+      if (reportModalErr) reportModalErr.textContent = "Title, notes, date, and exactly one image are required.";
+      return;
+    }
+    if (notes.length > REPORT_NOTES_MAX_CHARS){
+      if (reportModalErr) reportModalErr.textContent = `Notes must be ${REPORT_NOTES_MAX_CHARS} characters or less.`;
+      return;
+    }
+    const maxBytes = getReportImageByteLimit();
+    const imageBytes = estimateDataUrlBytes(images[0]);
+    if (imageBytes <= 0 || imageBytes > maxBytes){
+      if (reportModalErr) reportModalErr.textContent = `Image too large. Max allowed is about ${(maxBytes / (1024 * 1024)).toFixed(2)} MB.`;
       return;
     }
     viewerReportDraft.title = title;

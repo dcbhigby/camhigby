@@ -33,6 +33,12 @@ MANUAL_REPORTS_FILE = Path(os.getenv("MANUAL_REPORTS_FILE", str(DEFAULT_MANUAL_R
 DEFAULT_STRIKE_REPORTS_FILE = Path("/var/data/strike_reports.json") if Path("/var/data").exists() else (ROOT_DIR / "strike_reports.json")
 STRIKE_REPORTS_FILE = Path(os.getenv("STRIKE_REPORTS_FILE", str(DEFAULT_STRIKE_REPORTS_FILE)))
 MAX_STRIKE_REPORTS = int(os.getenv("MAX_STRIKE_REPORTS", "5000"))
+STRIKE_REPORT_NOTES_MAX_CHARS = int(os.getenv("STRIKE_REPORT_NOTES_MAX_CHARS", "200"))
+STRIKE_REPORT_TITLE_MAX_CHARS = int(os.getenv("STRIKE_REPORT_TITLE_MAX_CHARS", "140"))
+STRIKE_REPORT_IMAGE_MARGIN_BYTES = int(os.getenv("STRIKE_REPORT_IMAGE_MARGIN_BYTES", str(256 * 1024)))
+STRIKE_REPORT_MIN_IMAGE_BYTES = int(os.getenv("STRIKE_REPORT_MIN_IMAGE_BYTES", str(512 * 1024)))
+STRIKE_REPORT_MAX_IMAGE_BYTES = int(os.getenv("STRIKE_REPORT_MAX_IMAGE_BYTES", str(8 * 1024 * 1024)))
+STRIKE_REPORT_MAX_PAYLOAD_OVERHEAD = int(os.getenv("STRIKE_REPORT_MAX_PAYLOAD_OVERHEAD", str(128 * 1024)))
 VIEWER_EMAIL_COOKIE = "viewer_gate_pass"
 VIEWER_EMAIL_TTL_SECONDS = int(os.getenv("VIEWER_EMAIL_TTL_SECONDS", str(30 * 24 * 60 * 60)))
 IP_HASH_SALT = os.getenv("IP_HASH_SALT", "retro-war-map-ip-salt-v1")
@@ -683,8 +689,20 @@ class AppHandler(SimpleHTTPRequestHandler):
             )
             return
         if path == "/api/strike-report":
+            limits = get_strike_report_limits()
+            raw_len = self.headers.get("Content-Length", "0")
+            try:
+                content_length = int(raw_len)
+            except ValueError:
+                content_length = 0
+            if content_length <= 0:
+                self.end_json(HTTPStatus.BAD_REQUEST, {"error": "missing request body"})
+                return
+            if content_length > int(limits.get("payload_max_bytes", 0)):
+                self.end_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "strike report payload too large"})
+                return
             body = self.read_json_body()
-            report = normalize_strike_report(body)
+            report = normalize_strike_report(body, limits=limits)
             if report is None:
                 self.end_json(HTTPStatus.BAD_REQUEST, {"error": "invalid strike report payload"})
                 return
@@ -1066,6 +1084,66 @@ def sanitize_strike_reports(items, limit: int = MAX_STRIKE_REPORTS) -> list:
     return out
 
 
+def estimate_data_url_bytes(value: str) -> int:
+    if not isinstance(value, str) or not value.startswith("data:image/"):
+        return 0
+    comma = value.find(",")
+    if comma < 0:
+        return 0
+    meta = value[:comma].lower()
+    payload = value[comma + 1 :]
+    if ";base64" in meta:
+        n = len(payload.strip())
+        pad = 0
+        if payload.endswith("=="):
+            pad = 2
+        elif payload.endswith("="):
+            pad = 1
+        return max(0, ((n * 3) // 4) - pad)
+    return len(payload.encode("utf-8"))
+
+
+def get_max_live_strike_image_bytes() -> int:
+    payload = read_state_payload()
+    if not isinstance(payload, dict):
+        return 0
+    state = payload.get("state")
+    if not isinstance(state, dict):
+        return 0
+    strikes = state.get("strikes")
+    if not isinstance(strikes, list):
+        return 0
+    max_bytes = 0
+    for s in strikes:
+        if not isinstance(s, dict):
+            continue
+        images = s.get("images")
+        if not isinstance(images, list):
+            continue
+        for img in images:
+            if not isinstance(img, str):
+                continue
+            size = estimate_data_url_bytes(img)
+            if size > max_bytes:
+                max_bytes = size
+    return max_bytes
+
+
+def get_strike_report_limits() -> dict:
+    max_live = get_max_live_strike_image_bytes()
+    dynamic_cap = max_live + STRIKE_REPORT_IMAGE_MARGIN_BYTES
+    image_cap = max(STRIKE_REPORT_MIN_IMAGE_BYTES, dynamic_cap)
+    image_cap = min(image_cap, STRIKE_REPORT_MAX_IMAGE_BYTES)
+    payload_cap = image_cap + STRIKE_REPORT_MAX_PAYLOAD_OVERHEAD
+    return {
+        "notes_max": max(1, STRIKE_REPORT_NOTES_MAX_CHARS),
+        "title_max": max(20, STRIKE_REPORT_TITLE_MAX_CHARS),
+        "max_images": 1,
+        "image_max_bytes": max(64 * 1024, image_cap),
+        "payload_max_bytes": max(128 * 1024, payload_cap),
+    }
+
+
 def _read_strike_reports_from_file() -> list:
     if not STRIKE_REPORTS_FILE.exists():
         return []
@@ -1119,9 +1197,10 @@ def write_strike_reports(items: list):
         write_state_payload(mirrored)
 
 
-def normalize_strike_report(payload: dict):
+def normalize_strike_report(payload: dict, limits: dict = None):
     if not isinstance(payload, dict):
         return None
+    lim = limits or get_strike_report_limits()
     try:
         lat = float(payload.get("lat"))
         lng = float(payload.get("lng"))
@@ -1137,6 +1216,8 @@ def normalize_strike_report(payload: dict):
     icon = str(payload.get("icon", "")).strip()
     if not title or not notes:
         return None
+    if len(notes) > int(lim.get("notes_max", STRIKE_REPORT_NOTES_MAX_CHARS)):
+        return None
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", event_date):
         return None
     if not re.match(r"^#([0-9a-f]{3}|[0-9a-f]{6})$", color):
@@ -1150,9 +1231,15 @@ def normalize_strike_report(payload: dict):
     images_in = payload.get("images")
     if not isinstance(images_in, list):
         return None
-    images = [str(x) for x in images_in if isinstance(x, str) and x.startswith("data:image/")]
-    if not images:
+    if len(images_in) != int(lim.get("max_images", 1)):
         return None
+    images = [str(x) for x in images_in if isinstance(x, str) and x.startswith("data:image/")]
+    if len(images) != int(lim.get("max_images", 1)):
+        return None
+    max_img_bytes = int(lim.get("image_max_bytes", STRIKE_REPORT_MAX_IMAGE_BYTES))
+    for img in images:
+        if estimate_data_url_bytes(img) > max_img_bytes:
+            return None
     rid = str(payload.get("id", "")).strip() or f"strike-report-{secrets.token_hex(8)}"
     created_at = str(payload.get("createdAt", "")).strip() or datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -1163,11 +1250,11 @@ def normalize_strike_report(payload: dict):
         "lng": round(lng, 6),
         "color": color,
         "icon": icon,
-        "title": title[:140],
+        "title": title[: int(lim.get("title_max", STRIKE_REPORT_TITLE_MAX_CHARS))],
         "sourceUrl": source_url[:1000],
-        "notes": notes[:4000],
+        "notes": notes[: int(lim.get("notes_max", STRIKE_REPORT_NOTES_MAX_CHARS))],
         "eventDate": event_date,
-        "images": images[:24],
+        "images": images[: int(lim.get("max_images", 1))],
         "createdAt": created_at,
         "submittedAt": now_iso,
         "createdAtTs": int(time.time()),
