@@ -233,6 +233,32 @@ class AppHandler(SimpleHTTPRequestHandler):
                 },
             )
             return
+        if path == "/api/storage-health":
+            if not self.is_admin_session():
+                self.end_json(HTTPStatus.UNAUTHORIZED, {"error": "admin required"})
+                return
+            email_data = read_viewer_email_data()
+            email_entries = email_data.get("entries", [])
+            email_by_ip = email_data.get("byIp", {})
+            state_payload = read_state_payload()
+            state_obj = state_payload.get("state", {}) if isinstance(state_payload, dict) else {}
+            strikes = state_obj.get("strikes", []) if isinstance(state_obj, dict) else []
+            viewer_email_file = str(VIEWER_EMAIL_FILE)
+            state_file = str(STATE_FILE)
+            self.end_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "viewerEmailFile": viewer_email_file,
+                    "viewerEmailPersistent": viewer_email_file.startswith("/var/data/"),
+                    "viewerEmailEntryCount": len(email_entries) if isinstance(email_entries, list) else 0,
+                    "viewerEmailIpCount": len(email_by_ip) if isinstance(email_by_ip, dict) else 0,
+                    "stateFile": state_file,
+                    "statePersistent": state_file.startswith("/var/data/"),
+                    "strikeCount": len(strikes) if isinstance(strikes, list) else 0,
+                },
+            )
+            return
         if path == "/api/state":
             payload = read_state_payload()
             if payload is None:

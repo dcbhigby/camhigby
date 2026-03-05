@@ -3,6 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Epic Fury Map" />
+  <meta name="theme-color" content="#050805" />
   <title>Tactical map tracking Operation Epic Fury</title>
   <meta name="description" content="Tactical map tracking Operation Epic Fury." />
   <meta property="og:type" content="website" />
@@ -1275,6 +1279,46 @@
       line-height:1.35;
       color: rgba(210,255,225,.50);
     }
+    .netBanner{
+      position:absolute;
+      top:8px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:22000;
+      background: rgba(120,0,0,.78);
+      border:1px solid rgba(255,120,120,.45);
+      border-radius:999px;
+      color:#ffd4d4;
+      font-size:11px;
+      letter-spacing:.06em;
+      padding:6px 10px;
+      display:none;
+      pointer-events:none;
+      user-select:none;
+    }
+    .netBanner.show{ display:block; }
+    .pullRefreshHint{
+      position:absolute;
+      top:8px;
+      right:8px;
+      z-index:21900;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background: var(--panel);
+      color:var(--text);
+      font-size:10px;
+      letter-spacing:.06em;
+      padding:4px 8px;
+      opacity:.45;
+      transition: opacity .14s ease, transform .14s ease;
+      pointer-events:none;
+      user-select:none;
+      transform: translateY(-8px);
+    }
+    .pullRefreshHint.show{
+      opacity:.95;
+      transform: translateY(0);
+    }
     .status b{ color: rgba(220,255,235,.65); }
     .camWatermark{
       position:absolute; bottom:12px; left:12px; z-index:10000;
@@ -2137,6 +2181,7 @@
       <button id="btnAdminReports" class="ghost" title="Review submitted strike reports" style="display:none;">STRIKE REPORTS</button>
       <button id="btnRestore" title="Restore map controls">MAP CONTROL</button>
       <button id="btnExportViewerEmails" class="ghost" title="Download captured viewer emails" style="display:none;">EMAIL LOG</button>
+      <div id="storageHealthBadge" class="badge" style="display:none; cursor:pointer;" title="Live storage health (click to refresh)">STORAGE: --</div>
       <button id="btnAdminLogin" class="ghost" title="Administrator login">ADMIN LOGIN</button>
       <button id="btnAdminLogout" class="ghost" title="Administrator logout" style="display:none;">LOGOUT</button>
     </div>
@@ -2228,6 +2273,8 @@
       <b>MODE</b>: PAN • <b>ZOOM</b>: <span id="zoomReadout">?</span> • <b>LAT,LNG</b>: <span id="latlngReadout">—</span>
       <br/><span style="opacity:.85;" id="netStatus" aria-live="polite">STATE: idle</span>
     </div>
+    <div class="netBanner" id="netBanner" aria-live="polite">OFFLINE: reconnecting...</div>
+    <div class="pullRefreshHint" id="pullRefreshHint">PULL TO REFRESH</div>
     <div class="camWatermark" id="camWatermark">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
@@ -2509,11 +2556,75 @@ const ICON_TYPES = [
 const zoomReadout  = document.getElementById("zoomReadout");
 const latlngReadout= document.getElementById("latlngReadout");
 const netStatus    = document.getElementById("netStatus");
+const netBanner    = document.getElementById("netBanner");
+const pullRefreshHint = document.getElementById("pullRefreshHint");
 const legendBoxEl = document.getElementById("legendBox");
 const legendColorItems = Array.from(document.querySelectorAll("#legendBox .legendItem.toggleable"));
 const camWatermarkEl = document.getElementById("camWatermark");
 const activeLegendColorFilter = new Set();
 function setStateStatus(msg){ netStatus.textContent = `STATE: ${msg}`; }
+function syncNetworkBanner(){
+  if (!netBanner) return;
+  const online = navigator.onLine !== false;
+  netBanner.classList.toggle("show", !online);
+  if (online) return;
+  netBanner.textContent = "OFFLINE: reconnecting...";
+}
+window.addEventListener("online", () => {
+  syncNetworkBanner();
+  setStateStatus("online");
+});
+window.addEventListener("offline", () => {
+  syncNetworkBanner();
+  setStateStatus("offline");
+});
+syncNetworkBanner();
+
+// iOS/webview-friendly pull-to-refresh from top edge.
+(() => {
+  const container = document.getElementById("map");
+  if (!container || !pullRefreshHint || !("ontouchstart" in window)) return;
+  let active = false;
+  let startY = 0;
+  let fired = false;
+  function blockByOverlay(){
+    if (document.querySelector(".adminLoginWrap.show")) return true;
+    if (document.querySelector(".viewerEmailWrap.show")) return true;
+    if (document.querySelector(".modalWrap[style*='display: flex']")) return true;
+    return false;
+  }
+  container.addEventListener("touchstart", (ev) => {
+    if (!ev.touches || ev.touches.length !== 1) return;
+    if (blockByOverlay()) return;
+    const y = ev.touches[0].clientY;
+    // Start gesture only near top bar so normal map panning stays intact.
+    if (y > 72) return;
+    active = true;
+    fired = false;
+    startY = y;
+    pullRefreshHint.classList.remove("show");
+  }, { passive: true });
+  container.addEventListener("touchmove", (ev) => {
+    if (!active || !ev.touches || !ev.touches.length) return;
+    const dy = ev.touches[0].clientY - startY;
+    pullRefreshHint.classList.toggle("show", dy > 18 && !fired);
+    if (dy > 92 && !fired){
+      fired = true;
+      pullRefreshHint.textContent = "REFRESHING...";
+      setStateStatus("refreshing");
+      setTimeout(() => window.location.reload(), 90);
+    }
+  }, { passive: true });
+  const clear = () => {
+    active = false;
+    if (!fired){
+      pullRefreshHint.classList.remove("show");
+      pullRefreshHint.textContent = "PULL TO REFRESH";
+    }
+  };
+  container.addEventListener("touchend", clear, { passive: true });
+  container.addEventListener("touchcancel", clear, { passive: true });
+})();
 function isActivateKey(ev){
   return ev.key === "Enter" || ev.key === " ";
 }
@@ -2637,6 +2748,7 @@ const VIEWER_EMAIL_LOG_KEY = "retroWarMap.viewerEmailLog.v1";
 const VIEWER_EMAIL_API = "/api/viewer-email";
 const VIEWER_EMAIL_STATUS_API = "/api/viewer-email-status";
 const VIEWER_EMAIL_EXPORT_API = "/api/viewer-email-export";
+const STORAGE_HEALTH_API = "/api/storage-health";
 const STRIKE_REPORTS_API = "/api/strike-reports";
 const STRIKE_REPORT_SUBMIT_API = "/api/strike-report";
 const STRIKE_REPORT_APPROVE_API = "/api/strike-reports-approve";
@@ -2661,6 +2773,7 @@ const btnAdminLogout = document.getElementById("btnAdminLogout");
 const btnPublishLive = document.getElementById("btnPublishLive");
 const btnExportViewerEmails = document.getElementById("btnExportViewerEmails");
 const btnViewerOptions = document.getElementById("btnViewerOptions");
+const storageHealthBadge = document.getElementById("storageHealthBadge");
 const btnReportEvent = document.getElementById("btnReportEvent");
 const btnAdminReports = document.getElementById("btnAdminReports");
 const viewerOptionsPanel = document.getElementById("viewerOptionsPanel");
@@ -3238,6 +3351,29 @@ async function refreshAdminStrikeReports(){
     setStateStatus(`reports load failed (showing local queue): ${e?.message || e}`);
   }
 }
+async function refreshStorageHealth(){
+  if (!storageHealthBadge){
+    return;
+  }
+  if (!isAdminMode()){
+    storageHealthBadge.style.display = "none";
+    storageHealthBadge.textContent = "STORAGE: --";
+    storageHealthBadge.title = "Live storage health";
+    return;
+  }
+  storageHealthBadge.style.display = "";
+  try{
+    const data = await authRequest(STORAGE_HEALTH_API, "GET");
+    const emailCount = Number(data?.viewerEmailEntryCount || 0);
+    const persistent = !!data?.viewerEmailPersistent;
+    const path = String(data?.viewerEmailFile || "");
+    storageHealthBadge.textContent = `EMAILS: ${emailCount} • ${persistent ? "PERSISTENT" : "EPHEMERAL"}`;
+    storageHealthBadge.title = `Email file: ${path || "unknown"}\nPersistent: ${persistent ? "yes (/var/data)" : "no"}\nIP records: ${Number(data?.viewerEmailIpCount || 0)}\nStrikes saved: ${Number(data?.strikeCount || 0)}`;
+  }catch(e){
+    storageHealthBadge.textContent = "EMAILS: ERROR";
+    storageHealthBadge.title = `Storage health request failed: ${e?.message || e}`;
+  }
+}
 function setAdminMode(admin){
   adminSessionActive = !!admin;
   PUBLIC_VIEW_MODE = !adminSessionActive;
@@ -3264,6 +3400,7 @@ function applyAccessMode(){
   if (btnViewerOptions) btnViewerOptions.style.display = admin ? "none" : "";
   if (btnReportEvent) btnReportEvent.style.display = admin ? "none" : "";
   if (btnAdminReports) btnAdminReports.style.display = admin ? "" : "none";
+  if (storageHealthBadge) storageHealthBadge.style.display = admin ? "" : "none";
   if (statsBtn){
     statsBtn.style.display = "";
     statsBtn.disabled = false;
@@ -3293,8 +3430,10 @@ function applyAccessMode(){
     closeReportModal();
     if (adminReportsPanel) adminReportsPanel.classList.remove("show");
     refreshAdminStrikeReports();
+    refreshStorageHealth();
   } else {
     if (adminReportsPanel) adminReportsPanel.classList.remove("show");
+    refreshStorageHealth();
   }
   if (admin){
     closeViewerEmailGate();
@@ -3489,6 +3628,14 @@ if (btnAdminReports){
 if (btnAdminReportsRefresh){
   btnAdminReportsRefresh.addEventListener("click", () => {
     refreshAdminStrikeReports();
+    refreshStorageHealth();
+  });
+}
+if (storageHealthBadge){
+  storageHealthBadge.addEventListener("click", () => {
+    if (!isAdminMode()) return;
+    refreshStorageHealth();
+    setStateStatus("storage health refreshed");
   });
 }
 if (adminReportsList){
