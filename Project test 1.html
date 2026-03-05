@@ -3119,6 +3119,10 @@ async function authRequest(path, method = "GET", body = null){
   let data = null;
   try{ data = await res.json(); }catch{ data = null; }
   if (!res.ok){
+    if (res.status === 401 && !isLocalBypassAuthMode()){
+      // Server session expired or reset (e.g., deploy); force UI back to viewer mode.
+      try{ setAdminMode(false); }catch{}
+    }
     const msg = data?.error || `auth request failed (${res.status})`;
     throw new Error(msg);
   }
@@ -9427,6 +9431,11 @@ async function saveStateToServer(stateOverride = null){
     body: JSON.stringify({ state, allowEmpty })
   });
   if (!res.ok){
+    if (res.status === 401 && !isLocalBypassAuthMode()){
+      // Keep UX clear when backend session is gone but UI was still in admin mode.
+      setAdminMode(false);
+      try{ openAdminLoginPage(); }catch{}
+    }
     let msg = `server state save failed (${res.status})`;
     try{
       const data = await res.json();
