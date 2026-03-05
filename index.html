@@ -8796,7 +8796,8 @@ document.getElementById("btnClear").addEventListener("click", () => {
 const LOCAL_AUTOSAVE_KEY = "retroWarMap.autosave.v3";
 const SERVER_STATE_API = "/api/state";
 const SERVER_AUTOSAVE_ENABLED = true;
-const LIVE_STATE_POLL_MS = 1000;
+const SERVER_AUTOSAVE_DEBOUNCE_MS = 1800;
+const LIVE_STATE_POLL_MS = 2500;
 var iranOrgChartEl = document.getElementById("iranOrgChart");
 const orgImgTools = document.getElementById("orgImgTools");
 const orgImgTargetLabel = document.getElementById("orgImgTargetLabel");
@@ -9386,13 +9387,13 @@ function scheduleServerAutosave(){
     try{
       await saveStateToServer();
       setStateStatus("autosaved locally + server");
-    }catch{
-      setStateStatus("autosaved locally (server save failed)");
+    }catch(err){
+      setStateStatus(`autosaved locally (server save failed: ${err?.message || err})`);
     }finally{
       serverAutosaveInFlight = false;
       if (serverAutosaveQueued) scheduleServerAutosave();
     }
-  }, 450);
+  }, SERVER_AUTOSAVE_DEBOUNCE_MS);
 }
 async function flushServerAutosaveNow(){
   if (!SERVER_AUTOSAVE_ENABLED) return;
@@ -9410,8 +9411,8 @@ async function flushServerAutosaveNow(){
   try{
     await saveStateToServer();
     setStateStatus("autosaved locally + server");
-  }catch{
-    setStateStatus("autosaved locally (server save failed)");
+  }catch(err){
+    setStateStatus(`autosaved locally (server save failed: ${err?.message || err})`);
   }finally{
     serverAutosaveInFlight = false;
   }

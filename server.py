@@ -8,6 +8,7 @@ import re
 import gzip
 import html
 import socket
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -57,6 +58,7 @@ OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4.1-mini").strip()
 OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "12"))
 
 SESSIONS = {}  # token -> expiry_unix_ts
+STATE_WRITE_LOCK = threading.Lock()
 
 
 def now_ts() -> int:
@@ -434,6 +436,15 @@ class AppHandler(SimpleHTTPRequestHandler):
             if content_length <= 0:
                 self.end_json(HTTPStatus.BAD_REQUEST, {"error": "missing request body"})
                 return
+            # Hard safety ceiling to avoid service instability on oversized saves.
+            absolute_limit = int(os.getenv("ABSOLUTE_MAX_STATE_BYTES", str(50 * 1024 * 1024)))
+            if absolute_limit > 0 and content_length > absolute_limit:
+                limit_mb = round(absolute_limit / (1024 * 1024), 2)
+                self.end_json(
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    {"error": f"state too large (hard limit {limit_mb} MB)"},
+                )
+                return
             if MAX_STATE_BYTES > 0 and content_length > MAX_STATE_BYTES:
                 limit_mb = round(MAX_STATE_BYTES / (1024 * 1024), 2)
                 self.end_json(
@@ -739,12 +750,24 @@ def read_state_payload():
 def write_state_payload(payload: dict):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     STATE_BACKUP_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = STATE_FILE.with_suffix(STATE_FILE.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
-    tmp.replace(STATE_FILE)
-    bak_tmp = STATE_BACKUP_FILE.with_suffix(STATE_BACKUP_FILE.suffix + ".tmp")
-    bak_tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
-    bak_tmp.replace(STATE_BACKUP_FILE)
+    body = json.dumps(payload, separators=(",", ":"))
+    with STATE_WRITE_LOCK:
+        # Unique temp names prevent collisions across threaded concurrent writes.
+        tmp = STATE_FILE.with_suffix(STATE_FILE.suffix + f".{secrets.token_hex(6)}.tmp")
+        tmp.write_text(body, encoding="utf-8")
+        tmp.replace(STATE_FILE)
+        # Backup snapshots are useful, but writing them every autosave is expensive.
+        should_write_backup = True
+        try:
+            if STATE_BACKUP_FILE.exists():
+                age = time.time() - STATE_BACKUP_FILE.stat().st_mtime
+                should_write_backup = age > 300
+        except Exception:
+            should_write_backup = True
+        if should_write_backup:
+            bak_tmp = STATE_BACKUP_FILE.with_suffix(STATE_BACKUP_FILE.suffix + f".{secrets.token_hex(6)}.tmp")
+            bak_tmp.write_text(body, encoding="utf-8")
+            bak_tmp.replace(STATE_BACKUP_FILE)
 
 
 def make_lite_state_payload(payload: dict) -> dict:
