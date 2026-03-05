@@ -2563,6 +2563,16 @@ const legendColorItems = Array.from(document.querySelectorAll("#legendBox .legen
 const camWatermarkEl = document.getElementById("camWatermark");
 const activeLegendColorFilter = new Set();
 function setStateStatus(msg){ netStatus.textContent = `STATE: ${msg}`; }
+function isRenderableImageSrc(src){
+  if (typeof src !== "string") return false;
+  const s = src.trim();
+  if (!s) return false;
+  if (s.startsWith("data:image/")) return true;
+  if (s.startsWith("blob:")) return true;
+  if (/^https?:\/\//i.test(s)) return true;
+  if (s.startsWith("/") || s.startsWith("./") || s.startsWith("../")) return true;
+  return false;
+}
 function syncNetworkBanner(){
   if (!netBanner) return;
   const online = navigator.onLine !== false;
@@ -8682,7 +8692,12 @@ async function normalizeImportedStateForLive(rawState){
     if (!Array.isArray(strike?.images)) continue;
     const nextImages = [];
     for (const imgRaw of strike.images){
-      if (typeof imgRaw !== "string" || !imgRaw.startsWith("data:image/")) continue;
+      if (!isRenderableImageSrc(imgRaw)) continue;
+      // Keep URL-based images exactly as provided.
+      if (!String(imgRaw).startsWith("data:image/")){
+        nextImages.push(String(imgRaw));
+        continue;
+      }
       let img = imgRaw;
       if (img.length > SKIP_REENCODE_MAX_BYTES){
         const compressedImg = await compressDataUrlImage(imgRaw);
@@ -8849,7 +8864,7 @@ async function fetchStrikeImagesById(strikeId){
   const res = await fetch(`${STRIKE_IMAGES_API}?id=${encodeURIComponent(id)}`, { method:"GET", credentials:"same-origin" });
   if (!res.ok) throw new Error(`strike image fetch failed (${res.status})`);
   const data = await res.json();
-  const images = Array.isArray(data?.images) ? data.images.filter((x) => typeof x === "string" && x.startsWith("data:image/")) : [];
+  const images = Array.isArray(data?.images) ? data.images.filter((x) => isRenderableImageSrc(x)) : [];
   return images;
 }
 function clampOrgImageZoom(v){
@@ -9533,7 +9548,7 @@ function loadFromObject(obj, options = {}){
       title: s.title || "",
       notes: s.notes || "",
       images: (() => {
-        const inline = Array.isArray(s.images) ? s.images.filter(x => typeof x === "string" && x.startsWith("data:image/")) : [];
+        const inline = Array.isArray(s.images) ? s.images.filter(x => isRenderableImageSrc(x)) : [];
         if (inline.length) return inline;
         const cached = strikeImageCache.get(String(s.id || ""));
         return Array.isArray(cached) ? cached.slice() : [];

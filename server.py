@@ -287,7 +287,16 @@ class AppHandler(SimpleHTTPRequestHandler):
                 if str(s.get("id", "")) != strike_id:
                     continue
                 imgs = s.get("images")
-                images = [x for x in imgs if isinstance(x, str) and x.startswith("data:image/")] if isinstance(imgs, list) else []
+                images = []
+                if isinstance(imgs, list):
+                    for x in imgs:
+                        if not isinstance(x, str):
+                            continue
+                        sx = x.strip()
+                        if not sx:
+                            continue
+                        if sx.startswith("data:image/") or sx.startswith("blob:") or sx.startswith("/") or sx.startswith("./") or sx.startswith("../") or re.match(r"^https?://", sx, re.I):
+                            images.append(sx)
                 self.end_json(HTTPStatus.OK, {"ok": True, "id": strike_id, "images": images, "count": len(images)})
                 return
             self.end_json(HTTPStatus.NOT_FOUND, {"error": "strike not found"})
