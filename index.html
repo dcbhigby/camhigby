@@ -8693,16 +8693,18 @@ async function normalizeImportedStateForLive(rawState){
     if (!Array.isArray(strike?.images)) continue;
     const nextImages = [];
     for (const imgRaw of strike.images){
-      if (!isRenderableImageSrc(imgRaw)) continue;
-      // Keep URL-based images exactly as provided.
-      if (!String(imgRaw).startsWith("data:image/")){
-        nextImages.push(String(imgRaw));
+      if (typeof imgRaw !== "string") continue;
+      const raw = String(imgRaw).trim();
+      if (!raw) continue;
+      // Keep non-data URLs exactly as provided (do not drop historical images).
+      if (!raw.startsWith("data:image/")){
+        nextImages.push(raw);
         continue;
       }
-      let img = imgRaw;
+      let img = raw;
       if (img.length > SKIP_REENCODE_MAX_BYTES){
-        const compressedImg = await compressDataUrlImage(imgRaw);
-        if (compressedImg.length < imgRaw.length) compressed++;
+        const compressedImg = await compressDataUrlImage(raw);
+        if (compressedImg.length < raw.length) compressed++;
         img = compressedImg;
       }
       // Do not silently drop imported strike images; preserve all.
@@ -8715,26 +8717,47 @@ async function normalizeImportedStateForLive(rawState){
 }
 async function appendImagesToActiveStrike(fileList){
   const s = strikes.find(x => x.id === activeStrikeId);
-  if (!s) return 0;
+  if (!s) return { added:0, blocked:0 };
   if (!Array.isArray(s.images)) s.images = [];
   const files = Array.from(fileList || []).filter((f) => f && typeof f.type === "string" && f.type.startsWith("image/"));
-  if (!files.length) return 0;
+  if (!files.length) return { added:0, blocked:0 };
 
   const before = deepClone(s);
   let added = 0;
+  let blocked = 0;
+  let totalChars = 0;
+  for (const strike of strikes){
+    const arr = Array.isArray(strike?.images) ? strike.images : [];
+    for (const im of arr){
+      if (typeof im === "string" && im.startsWith("data:image/")){
+        totalChars += im.length;
+      }
+    }
+  }
 
   for (const f of files){
     try{
       const dataUrl = await fileToDataURL(f);
       if (typeof dataUrl === "string" && dataUrl.startsWith("data:image/")){
+        if (dataUrl.length > MAX_LIVE_IMAGE_SINGLE_CHARS){
+          blocked++;
+          continue;
+        }
+        if ((totalChars + dataUrl.length) > MAX_LIVE_IMAGE_TOTAL_CHARS){
+          blocked++;
+          continue;
+        }
         s.images.push(dataUrl);
+        totalChars += dataUrl.length;
         added++;
       }
     }catch{
       // Skip unreadable files and continue with remaining images.
     }
   }
-  if (!added) return 0;
+  if (!added){
+    return { added:0, blocked };
+  }
 
   const after = deepClone(s);
   pushUndo({ type:"edit_strike", before, after });
@@ -8742,13 +8765,16 @@ async function appendImagesToActiveStrike(fileList){
   renderImageGrid(s.images);
   applyStrikeSearch();
   autosaveLocal();
-  return added;
+  return { added, blocked };
 }
 modalImages.addEventListener("change", async () => {
   if (!canEdit("add strike images")) return;
-  const added = await appendImagesToActiveStrike(modalImages.files || []);
+  const result = await appendImagesToActiveStrike(modalImages.files || []);
   modalImages.value = "";
-  if (added) setStateStatus(`added ${added} image${added === 1 ? "" : "s"}`);
+  if (result.added) setStateStatus(`added ${result.added} image${result.added === 1 ? "" : "s"}`);
+  if (result.blocked){
+    setStateStatus(`image limit reached: kept existing images, blocked ${result.blocked} new upload${result.blocked === 1 ? "" : "s"}`);
+  }
 });
 let imageDropDepth = 0;
 function dragHasFiles(ev){
@@ -8783,8 +8809,11 @@ if (sectionImages){
     imageDropDepth = 0;
     sectionImages.classList.remove("active");
     if (!canEdit("add strike images")) return;
-    const added = await appendImagesToActiveStrike(ev.dataTransfer?.files || []);
-    if (added) setStateStatus(`added ${added} image${added === 1 ? "" : "s"} (drop)`);
+    const result = await appendImagesToActiveStrike(ev.dataTransfer?.files || []);
+    if (result.added) setStateStatus(`added ${result.added} image${result.added === 1 ? "" : "s"} (drop)`);
+    if (result.blocked){
+      setStateStatus(`image limit reached: kept existing images, blocked ${result.blocked} new upload${result.blocked === 1 ? "" : "s"}`);
+    }
   });
 }
 btnClearImages.addEventListener("click", () => {
@@ -8858,7 +8887,9 @@ async function fetchStrikeImagesById(strikeId){
   const res = await fetch(`${STRIKE_IMAGES_API}?id=${encodeURIComponent(id)}`, { method:"GET", credentials:"same-origin" });
   if (!res.ok) throw new Error(`strike image fetch failed (${res.status})`);
   const data = await res.json();
-  const images = Array.isArray(data?.images) ? data.images.filter((x) => isRenderableImageSrc(x)) : [];
+  const images = Array.isArray(data?.images)
+    ? data.images.filter((x) => typeof x === "string" && String(x).trim()).map((x) => String(x).trim())
+    : [];
   return images;
 }
 function clampOrgImageZoom(v){
@@ -9542,7 +9573,9 @@ function loadFromObject(obj, options = {}){
       title: s.title || "",
       notes: s.notes || "",
       images: (() => {
-        const inline = Array.isArray(s.images) ? s.images.filter(x => isRenderableImageSrc(x)) : [];
+        const inline = Array.isArray(s.images)
+          ? s.images.filter((x) => typeof x === "string" && String(x).trim()).map((x) => String(x).trim())
+          : [];
         if (inline.length) return inline;
         const cached = strikeImageCache.get(String(s.id || ""));
         return Array.isArray(cached) ? cached.slice() : [];
