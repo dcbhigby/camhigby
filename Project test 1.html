@@ -9143,7 +9143,7 @@ const SERVER_AUTOSAVE_DEBOUNCE_MS = 1800;
 const LOCAL_AUTOSAVE_DEBOUNCE_MS = ("ontouchstart" in window || navigator.maxTouchPoints > 0) ? 700 : 450;
 const LIVE_STATE_POLL_MS = 2500;
 const LIVE_STATE_CACHE_KEY = "retroWarMap.liveStateCache.v1";
-const SERVER_FETCH_TIMEOUT_MS = 18000;
+const SERVER_FETCH_TIMEOUT_MS = 120000;
 const SERVER_FETCH_MAX_RETRIES = 3;
 const SERVER_FETCH_RETRY_BASE_MS = 800;
 var iranOrgChartEl = document.getElementById("iranOrgChart");
@@ -9818,7 +9818,7 @@ async function saveStateToServer(stateOverride = null){
     credentials:"same-origin",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({ state, allowEmpty })
-  }, { retries:3, baseDelayMs:1000, timeoutMs:20000 });
+  }, { retries:1, baseDelayMs:1500, timeoutMs:180000 });
   if (!res.ok){
     if (res.status === 401 && !isLocalBypassAuthMode()){
       // Keep UX clear when backend session is gone but UI was still in admin mode.
@@ -10650,17 +10650,7 @@ map.on("load", async () => {
     applyLegendPathFilter();
     updatePathFromBadge();
 
-    if (loaded && loadedFromLiteState && canUseServerState()){
-      fetchServerState({ lite:false }).then((fullData) => {
-        if (!fullData?.state || !Array.isArray(fullData.state.strikes)) return;
-        if (typeof fullData.savedAt === "string") lastServerSavedAt = fullData.savedAt;
-        const hasAnyImages = fullData.state.strikes.some(s => Array.isArray(s?.images) && s.images.length);
-        if (!hasAnyImages) return;
-        loadFromObject(fullData.state);
-        autosaveLocal({ skipServer:true });
-        setStateStatus("loaded live media state");
-      }).catch(() => {});
-    }
+    // Keep startup light for reliability: strike images load on-demand per strike.
 
     suppressServerAutosave = false;
     if (canUseServerState() && isAdminMode() && liveStateWasEmpty && loadedFromFallback){
