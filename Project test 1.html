@@ -8515,6 +8515,7 @@ function renderImageGrid(images){
 
       const before = deepClone(s);
       s.images.splice(i, 1);
+      markStrikeImagesDirty(s.id);
       const after = deepClone(s);
       pushUndo({ type:"edit_strike", before, after });
 
@@ -9037,6 +9038,7 @@ async function appendImagesToActiveStrike(fileList){
           continue;
         }
         s.images.push(dataUrl);
+        markStrikeImagesDirty(s.id);
         totalChars += dataUrl.length;
         added++;
       }
@@ -9113,6 +9115,7 @@ btnClearImages.addEventListener("click", () => {
 
   const before = deepClone(s);
   s.images = [];
+  markStrikeImagesDirty(s.id);
   const after = deepClone(s);
   pushUndo({ type:"edit_strike", before, after });
 
@@ -9169,6 +9172,7 @@ let serverAutosaveQueued = false;
 let localAutosaveTimer = null;
 let localAutosaveQueued = false;
 let localAutosaveNeedsServer = false;
+const dirtyStrikeImageIds = new Set();
 let suppressServerAutosave = canUseServerState();
 let liveStatePollTimer = null;
 let liveStatePollInFlight = false;
@@ -9177,6 +9181,30 @@ const strikeImageCache = new Map();
 
 function canUseServerState(){
   return window.location.protocol !== "file:";
+}
+function markStrikeImagesDirty(strikeId){
+  const id = String(strikeId || "").trim();
+  if (!id) return;
+  dirtyStrikeImageIds.add(id);
+}
+function buildStateForServer(stateIn, options = {}){
+  const fullImages = !!options.fullImages;
+  const state = deepClone(stateIn || {});
+  if (!Array.isArray(state?.strikes)) return state;
+  for (const s of state.strikes){
+    if (!s || typeof s !== "object") continue;
+    const sid = String(s.id || "");
+    const imgs = Array.isArray(s.images) ? s.images : [];
+    const touched = fullImages || dirtyStrikeImageIds.has(sid);
+    s._imagesTouched = touched ? 1 : 0;
+    if (touched){
+      s.imageCount = imgs.length;
+    } else {
+      s.imageCount = Number.isFinite(+s.imageCount) ? Math.max(0, +s.imageCount) : imgs.length;
+      s.images = [];
+    }
+  }
+  return state;
 }
 function waitMs(ms){
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
@@ -9807,10 +9835,11 @@ async function fetchServerState(opts = {}){
   saveCachedLiveState(data);
   return data;
 }
-async function saveStateToServer(stateOverride = null){
+async function saveStateToServer(stateOverride = null, options = {}){
   if (!canUseServerState()) return { ok:false, skipped:true };
   if (!isAdminMode()) return { ok:false, skipped:true };
-  const state = (stateOverride && typeof stateOverride === "object") ? stateOverride : serializeStateObject();
+  const rawState = (stateOverride && typeof stateOverride === "object") ? stateOverride : serializeStateObject();
+  const state = buildStateForServer(rawState, { fullImages: !!options.fullImages });
   const strikeCount = Array.isArray(state?.strikes) ? state.strikes.length : 0;
   const allowEmpty = strikeCount === 0;
   const res = await fetchWithRetry(SERVER_STATE_API, {
@@ -9834,7 +9863,15 @@ async function saveStateToServer(stateOverride = null){
   }
   const data = await res.json();
   if (typeof data?.savedAt === "string") lastServerSavedAt = data.savedAt;
-  saveCachedLiveState({ savedAt: lastServerSavedAt, state });
+  if (options.fullImages){
+    dirtyStrikeImageIds.clear();
+  } else if (Array.isArray(rawState?.strikes)){
+    for (const s of rawState.strikes){
+      const sid = String(s?.id || "");
+      if (sid) dirtyStrikeImageIds.delete(sid);
+    }
+  }
+  saveCachedLiveState({ savedAt: lastServerSavedAt, state: rawState });
   return data;
 }
 function scheduleServerAutosave(){
@@ -9904,11 +9941,7 @@ function startLiveStatePolling(){
       loadFromObject(lite.state, { preserveMapView: true });
       autosaveLocal({ skipServer:true });
       setStateStatus("live updates synced");
-      fetchServerState({ lite:false }).then((full) => {
-        if (!full?.state || !Array.isArray(full.state.strikes)) return;
-        loadFromObject(full.state, { preserveMapView: true });
-        autosaveLocal({ skipServer:true });
-      }).catch(() => {});
+      // Keep polling lightweight; strike images load on-demand per strike.
     }catch{
       // keep polling silently
     }finally{
@@ -9933,7 +9966,7 @@ async function publishLiveDefaultState(){
     if (!ok) return;
   }
   try{
-    await saveStateToServer(state);
+    await saveStateToServer(state, { fullImages:true });
     setStateStatus(`published live default (${strikeCount} strikes)`);
   }catch(err){
     serverAutosaveQueued = true;
@@ -9993,6 +10026,7 @@ function loadFromObject(obj, options = {}){
     }))
     .sort((a,b) => (b.createdAt||"").localeCompare(a.createdAt||""))
     : [];
+  dirtyStrikeImageIds.clear();
 
   const incomingArrows = obj?.arrows;
   arrows = Array.isArray(incomingArrows) ? incomingArrows
@@ -10160,7 +10194,7 @@ document.getElementById("btnImport")?.addEventListener("click", async () => {
       const liveAdmin = canUseServerState() && isAdminMode();
       if (liveAdmin){
         // Hosted mode: import must publish to server so refresh/users see it.
-        await saveStateToServer(obj);
+        await saveStateToServer(obj, { fullImages:true });
       }
       loadFromObject(obj);
       autosaveLocal({ skipServer: liveAdmin });
@@ -10658,7 +10692,7 @@ map.on("load", async () => {
         const current = serializeStateObject();
         const count = Array.isArray(current?.strikes) ? current.strikes.length : 0;
         if (count > 0){
-          await saveStateToServer(current);
+          await saveStateToServer(current, { fullImages:true });
           setStateStatus(`recovered live state from admin cache (${count} strikes)`);
         }
       }catch{

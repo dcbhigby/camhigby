@@ -676,6 +676,8 @@ class AppHandler(SimpleHTTPRequestHandler):
             if not isinstance(state, dict):
                 self.end_json(HTTPStatus.BAD_REQUEST, {"error": "state must be an object"})
                 return
+            existing = read_state_payload()
+            existing_state = existing.get("state") if isinstance(existing, dict) and isinstance(existing.get("state"), dict) else {}
             allow_empty = bool(body.get("allowEmpty", False))
             incoming_strikes = state.get("strikes")
             incoming_count = len(incoming_strikes) if isinstance(incoming_strikes, list) else 0
@@ -688,6 +690,7 @@ class AppHandler(SimpleHTTPRequestHandler):
                     },
                 )
                 return
+            state = merge_state_images_from_existing(state, existing_state)
             preserved_reports = body.get("strikeReports", [])
             if not isinstance(preserved_reports, list):
                 preserved_reports = read_strike_reports(limit=MAX_STRIKE_REPORTS)
@@ -1070,6 +1073,60 @@ def make_lite_state_payload(payload: dict) -> dict:
     out = dict(payload)
     out["state"] = lite_state
     out["lite"] = True
+    return out
+
+
+def _coord_key_from_strike(s: dict):
+    try:
+        return (round(float(s.get("lat")), 6), round(float(s.get("lng")), 6))
+    except Exception:
+        return None
+
+
+def merge_state_images_from_existing(incoming_state: dict, existing_state: dict) -> dict:
+    if not isinstance(incoming_state, dict):
+        return incoming_state
+    out = dict(incoming_state)
+    incoming = out.get("strikes")
+    if not isinstance(incoming, list):
+        return out
+    existing = existing_state.get("strikes") if isinstance(existing_state, dict) else []
+    if not isinstance(existing, list):
+        existing = []
+
+    by_id = {}
+    by_coord = {}
+    for s in existing:
+        if not isinstance(s, dict):
+            continue
+        sid = str(s.get("id", "")).strip()
+        if sid and sid not in by_id:
+            by_id[sid] = s
+        ck = _coord_key_from_strike(s)
+        if ck and ck not in by_coord:
+            by_coord[ck] = s
+
+    merged = []
+    for s in incoming:
+        if not isinstance(s, dict):
+            continue
+        item = dict(s)
+        touched = bool(item.get("_imagesTouched"))
+        imgs = item.get("images")
+        has_incoming_images = isinstance(imgs, list) and len(imgs) > 0
+        if not touched and not has_incoming_images:
+            sid = str(item.get("id", "")).strip()
+            source = by_id.get(sid) if sid else None
+            if source is None:
+                source = by_coord.get(_coord_key_from_strike(item))
+            source_images = source.get("images") if isinstance(source, dict) else []
+            if isinstance(source_images, list) and source_images:
+                item["images"] = source_images
+                item["imageCount"] = len(source_images)
+        if "_imagesTouched" in item:
+            item.pop("_imagesTouched", None)
+        merged.append(item)
+    out["strikes"] = merged
     return out
 
 
