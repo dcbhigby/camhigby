@@ -1634,6 +1634,18 @@
     .thumb .thumbBar{display:flex; gap:8px; padding:8px 10px; align-items:center; justify-content:space-between; border-top:1px solid rgba(0,255,106,.12);}
     .thumb .thumbBar .meta{font-size:11px; opacity:.85; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:72%;}
     .thumb .thumbBar button{padding:6px 8px; font-size:10px; box-shadow:none;}
+    #sectionViewerClose{
+      position: sticky;
+      bottom: 0;
+      background: linear-gradient(180deg, rgba(0,10,5,0), rgba(0,10,5,.88) 48%);
+      padding-top: 8px;
+      margin-top: 2px;
+      z-index: 2;
+    }
+    #sectionViewerClose > button{
+      width: 100%;
+      min-height: 40px;
+    }
 
     #imgLightbox{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.78); z-index:30000; padding:18px;}
     #imgLightboxImg{max-width:96vw; max-height:92vh; border:1px solid rgba(0,255,106,.25); box-shadow:0 0 28px rgba(0,255,106,.18); border-radius:14px; background:rgba(0,0,0,.55);}
@@ -2335,6 +2347,9 @@
             <button id="btnSaveStrike">SAVE</button>
             <button id="btnDeleteStrike" class="danger">DELETE</button>
           </div>
+          <div class="btnRow" id="sectionViewerClose" style="display:none;">
+            <button id="btnCloseModalViewer" class="ghost" type="button">CLOSE DETAILS</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2711,6 +2726,7 @@ let adminSessionActive = false;
 const SECURITY_KEY = "retroWarMap.security.v1";
 const ADMIN_SESSION_KEY = "retroWarMap.admin.session.v1";
 const VIEWER_EMAIL_KEY = "retroWarMap.viewerEmail.v1";
+const VIEWER_EMAIL_DEVICE_KEY = "retroWarMap.viewerEmail.device.v1";
 const VIEWER_EMAIL_LOG_KEY = "retroWarMap.viewerEmailLog.v1";
 const VIEWER_EMAIL_API = "/api/viewer-email";
 const VIEWER_EMAIL_STATUS_API = "/api/viewer-email-status";
@@ -2801,6 +2817,20 @@ const viewerReportPreviewMarkers = new Map();
 let adminStrikeReports = [];
 let activeAdminStrikeReportId = null;
 let approvedStrikeFocusIds = new Set();
+
+function markViewerEmailRemembered(){
+  try{ sessionStorage.setItem(VIEWER_EMAIL_KEY, "1"); }catch{}
+  try{ localStorage.setItem(VIEWER_EMAIL_DEVICE_KEY, "1"); }catch{}
+}
+function loadViewerEmailRemembered(){
+  try{
+    if (localStorage.getItem(VIEWER_EMAIL_DEVICE_KEY) === "1") return true;
+  }catch{}
+  try{
+    if (sessionStorage.getItem(VIEWER_EMAIL_KEY) === "1") return true;
+  }catch{}
+  return false;
+}
 
 function isLocalBypassAuthMode(){
   return window.location.protocol === "file:";
@@ -2996,7 +3026,7 @@ async function refreshViewerEmailStatusFromServer(){
     const data = await res.json();
     if (res.ok && data?.submitted){
       viewerEmailSubmitted = true;
-      try{ sessionStorage.setItem(VIEWER_EMAIL_KEY, "1"); }catch{}
+      markViewerEmailRemembered();
       closeViewerEmailGate();
     }
   }catch{
@@ -3841,7 +3871,7 @@ if (viewerEmailForm){
     }
     appendViewerEmailLog(email, webhookStatus);
     viewerEmailSubmitted = true;
-    try{ sessionStorage.setItem(VIEWER_EMAIL_KEY, "1"); }catch{}
+    markViewerEmailRemembered();
     closeViewerEmailGate();
     setStateStatus((webhookStatus === "failed" && serverStatus === "saved")
       ? "viewer email submitted (sheet failed)"
@@ -3903,7 +3933,7 @@ loadSecurityState();
 updateSecurityUI();
 renderViewerReportColorBar();
 setViewerReportPlacementMode(false);
-try{ viewerEmailSubmitted = sessionStorage.getItem(VIEWER_EMAIL_KEY) === "1"; }catch{ viewerEmailSubmitted = false; }
+viewerEmailSubmitted = loadViewerEmailRemembered();
 setAdminMode(false);
 if (isLocalBypassAuthMode()){
   viewerEmailStatusReady = true;
@@ -8195,6 +8225,7 @@ const btnSaveStrike = document.getElementById("btnSaveStrike");
 const btnDeleteStrike = document.getElementById("btnDeleteStrike");
 const btnToggleTimeline = document.getElementById("btnToggleTimeline");
 const btnTimelineAdd = document.getElementById("btnTimelineAdd");
+const btnCloseModalViewer = document.getElementById("btnCloseModalViewer");
 const timelineList = document.getElementById("timelineList");
 const timelineCountBadge = document.getElementById("timelineCountBadge");
 
@@ -8224,6 +8255,7 @@ const sectionTimeline = document.getElementById("sectionTimeline");
 const sectionPaths = document.getElementById("sectionPaths");
 const sectionImages = document.getElementById("sectionImages");
 const sectionActions = document.getElementById("sectionActions");
+const sectionViewerClose = document.getElementById("sectionViewerClose");
 
 function focusStrikeOnStatsTimeline(strikeId){
   if (!strikeId || !statsTimelineRail) return false;
@@ -8258,24 +8290,32 @@ function setModalReadOnly(readOnly){
   modalSize.disabled = ro;
   modalRotation.disabled = ro;
   modalImages.disabled = ro;
+  modalImages.style.display = ro ? "none" : "";
   btnClearImages.style.display = ro ? "none" : "";
   if (sectionStyle) sectionStyle.style.display = ro ? "none" : "";
   if (sectionPaths) sectionPaths.style.display = ro ? "none" : "";
   if (sectionActions) sectionActions.style.display = ro ? "none" : "";
+  if (sectionViewerClose) sectionViewerClose.style.display = ro ? "flex" : "none";
   modalColorBar.style.pointerEvents = ro ? "none" : "auto";
   modalIconBar.style.pointerEvents = ro ? "none" : "auto";
   modalColorBar.style.opacity = ro ? ".45" : "1";
   modalIconBar.style.opacity = ro ? ".45" : "1";
   if (sectionImages){
     sectionImages.classList.remove("active");
-    sectionImages.style.opacity = ro ? ".65" : "1";
+    sectionImages.style.opacity = "1";
   }
   const imgHelp = sectionImages?.querySelector(".imageDropHint");
   if (imgHelp) imgHelp.style.display = ro ? "none" : "";
   if (btnSaveStrike) btnSaveStrike.disabled = ro;
   if (btnDeleteStrike) btnDeleteStrike.disabled = ro;
-  if (btnToggleTimeline) btnToggleTimeline.disabled = ro;
-  if (btnTimelineAdd) btnTimelineAdd.disabled = ro || !modalTimelineEnabled;
+  if (btnToggleTimeline){
+    btnToggleTimeline.disabled = ro;
+    btnToggleTimeline.style.display = ro ? "none" : "";
+  }
+  if (btnTimelineAdd){
+    btnTimelineAdd.disabled = ro || !modalTimelineEnabled;
+    btnTimelineAdd.style.display = ro ? "none" : "";
+  }
   if (timelineList){
     timelineList.querySelectorAll("input,button").forEach((el) => { el.disabled = ro; });
   }
@@ -8300,6 +8340,7 @@ function closeStrikeModal(){
   renderStatsTimeline();
 }
 document.getElementById("btnCloseModal").addEventListener("click", closeStrikeModal);
+if (btnCloseModalViewer) btnCloseModalViewer.addEventListener("click", closeStrikeModal);
 modalWrap.addEventListener("click", (e) => { if (e.target === modalWrap) closeStrikeModal(); });
 if (textModalWrap){
   document.getElementById("btnCloseTextModal")?.addEventListener("click", closeTextBoxModal);
@@ -8447,21 +8488,24 @@ modalRotation.addEventListener("input", () => {
 function renderImageGrid(images){
   imageGrid.innerHTML = "";
   const arr = Array.isArray(images) ? images : [];
+  const ro = !!PUBLIC_VIEW_MODE;
   if (!arr.length) return;
 
   arr.forEach((src, idx) => {
     const wrap = document.createElement("div");
     wrap.className = "thumb";
+    const action = ro ? "" : `<button class="danger" data-remove="${idx}">REMOVE</button>`;
     wrap.innerHTML = `
       <img src="${escapeAttr(src)}" alt="Strike image ${idx+1}">
       <div class="thumbBar">
         <div class="meta">IMG ${idx+1} (click to enlarge)</div>
-        <button class="danger" data-remove="${idx}">REMOVE</button>
+        ${action}
       </div>`;
     wrap.querySelector("img").addEventListener("click", () => openLightbox(src));
     imageGrid.appendChild(wrap);
   });
 
+  if (ro) return;
   imageGrid.querySelectorAll("button[data-remove]").forEach(btn => {
     btn.addEventListener("click", () => {
       const s = strikes.find(x => x.id === activeStrikeId);
@@ -8593,6 +8637,7 @@ function renderModalPathList(){
 
 function renderTimelineEditor(){
   if (!timelineList) return;
+  const ro = !!PUBLIC_VIEW_MODE;
   timelineList.innerHTML = "";
   if (timelineCountBadge) timelineCountBadge.textContent = `EVENTS: ${modalTimelineEvents.length}`;
   if (btnToggleTimeline){
@@ -8611,15 +8656,17 @@ function renderTimelineEditor(){
   modalTimelineEvents.forEach((item, idx) => {
     const row = document.createElement("div");
     row.className = "timelineItem";
-    row.innerHTML = `
-      <div class="timelineItemRow">
-        <input type="text" data-tl-field="at" data-tl-index="${idx}" placeholder="Date / time (e.g., 2026-03-04 09:30 UTC)" value="${escapeAttr(item.at)}" />
-        <input type="text" data-tl-field="text" data-tl-index="${idx}" placeholder="Event details" value="${escapeAttr(item.text)}" />
+    const actionButtons = ro ? "" : `
         <div class="btnRow">
           <button class="ghost" data-tl-move="${idx}" data-tl-dir="-1" title="Move up">UP</button>
           <button class="ghost" data-tl-move="${idx}" data-tl-dir="1" title="Move down">DOWN</button>
           <button class="danger" data-tl-del="${idx}" title="Delete event">DELETE</button>
-        </div>
+        </div>`;
+    row.innerHTML = `
+      <div class="timelineItemRow">
+        <input type="text" data-tl-field="at" data-tl-index="${idx}" placeholder="Date / time (e.g., 2026-03-04 09:30 UTC)" value="${escapeAttr(item.at)}" ${ro ? "readonly" : ""} />
+        <input type="text" data-tl-field="text" data-tl-index="${idx}" placeholder="Event details" value="${escapeAttr(item.text)}" ${ro ? "readonly" : ""} />
+        ${actionButtons}
       </div>`;
     timelineList.appendChild(row);
   });
