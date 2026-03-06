@@ -9142,6 +9142,10 @@ const SERVER_AUTOSAVE_ENABLED = true;
 const SERVER_AUTOSAVE_DEBOUNCE_MS = 1800;
 const LOCAL_AUTOSAVE_DEBOUNCE_MS = ("ontouchstart" in window || navigator.maxTouchPoints > 0) ? 700 : 450;
 const LIVE_STATE_POLL_MS = 2500;
+const LIVE_STATE_CACHE_KEY = "retroWarMap.liveStateCache.v1";
+const SERVER_FETCH_TIMEOUT_MS = 18000;
+const SERVER_FETCH_MAX_RETRIES = 3;
+const SERVER_FETCH_RETRY_BASE_MS = 800;
 var iranOrgChartEl = document.getElementById("iranOrgChart");
 const orgImgTools = document.getElementById("orgImgTools");
 const orgImgTargetLabel = document.getElementById("orgImgTargetLabel");
@@ -9174,10 +9178,83 @@ const strikeImageCache = new Map();
 function canUseServerState(){
   return window.location.protocol !== "file:";
 }
+function waitMs(ms){
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+function isRetryableHttpStatus(status){
+  const n = Number(status);
+  return n === 408 || n === 425 || n === 429 || n === 500 || n === 502 || n === 503 || n === 504;
+}
+async function fetchWithTimeout(url, opts = {}, timeoutMs = SERVER_FETCH_TIMEOUT_MS){
+  const ms = Math.max(2000, Number(timeoutMs) || SERVER_FETCH_TIMEOUT_MS);
+  if (typeof AbortController === "undefined"){
+    return fetch(url, opts);
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try{
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  }finally{
+    clearTimeout(timer);
+  }
+}
+async function fetchWithRetry(url, opts = {}, cfg = {}){
+  const retries = Math.max(0, Number(cfg.retries ?? SERVER_FETCH_MAX_RETRIES));
+  const timeoutMs = Math.max(2000, Number(cfg.timeoutMs ?? SERVER_FETCH_TIMEOUT_MS));
+  const baseDelay = Math.max(150, Number(cfg.baseDelayMs ?? SERVER_FETCH_RETRY_BASE_MS));
+  for (let attempt = 0; attempt <= retries; attempt++){
+    try{
+      const res = await fetchWithTimeout(url, opts, timeoutMs);
+      if (!isRetryableHttpStatus(res.status) || attempt >= retries) return res;
+    }catch(err){
+      if (attempt >= retries){
+        const msg = err?.name === "AbortError" ? "request timed out" : (err?.message || "network error");
+        throw new Error(msg);
+      }
+    }
+    const delay = Math.round(baseDelay * Math.pow(1.7, attempt));
+    await waitMs(delay);
+  }
+  throw new Error("request failed");
+}
+function buildLiteCacheState(data){
+  if (!data || typeof data !== "object" || !data.state || typeof data.state !== "object") return null;
+  const state = deepClone(data.state);
+  if (Array.isArray(state.strikes)){
+    state.strikes = state.strikes.map((s) => {
+      if (!s || typeof s !== "object") return s;
+      const out = { ...s };
+      out.images = [];
+      return out;
+    });
+  }
+  return {
+    savedAt: typeof data.savedAt === "string" ? data.savedAt : "",
+    state
+  };
+}
+function saveCachedLiveState(data){
+  try{
+    const lite = buildLiteCacheState(data);
+    if (!lite) return;
+    localStorage.setItem(LIVE_STATE_CACHE_KEY, JSON.stringify(lite));
+  }catch{}
+}
+function loadCachedLiveState(){
+  try{
+    const raw = localStorage.getItem(LIVE_STATE_CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== "object" || !data.state || !Array.isArray(data.state.strikes)) return null;
+    return data;
+  }catch{
+    return null;
+  }
+}
 async function fetchStrikeImagesById(strikeId){
   const id = String(strikeId || "").trim();
   if (!id || !canUseServerState()) return [];
-  const res = await fetch(`${STRIKE_IMAGES_API}?id=${encodeURIComponent(id)}`, { method:"GET", credentials:"same-origin" });
+  const res = await fetchWithRetry(`${STRIKE_IMAGES_API}?id=${encodeURIComponent(id)}`, { method:"GET", credentials:"same-origin" }, { retries:2, baseDelayMs:500, timeoutMs:12000 });
   if (!res.ok) throw new Error(`strike image fetch failed (${res.status})`);
   const data = await res.json();
   const images = Array.isArray(data?.images)
@@ -9723,10 +9800,11 @@ async function fetchServerState(opts = {}){
   if (!canUseServerState()) return null;
   const lite = !!opts.lite;
   const url = lite ? `${SERVER_STATE_API}?lite=1` : SERVER_STATE_API;
-  const res = await fetch(url, { method:"GET", credentials:"same-origin" });
+  const res = await fetchWithRetry(url, { method:"GET", credentials:"same-origin" }, { retries:3, baseDelayMs:700, timeoutMs:15000 });
   if (!res.ok) throw new Error(`server state load failed (${res.status})`);
   const data = await res.json();
   if (!data || !data.state || typeof data.state !== "object") return null;
+  saveCachedLiveState(data);
   return data;
 }
 async function saveStateToServer(stateOverride = null){
@@ -9735,12 +9813,12 @@ async function saveStateToServer(stateOverride = null){
   const state = (stateOverride && typeof stateOverride === "object") ? stateOverride : serializeStateObject();
   const strikeCount = Array.isArray(state?.strikes) ? state.strikes.length : 0;
   const allowEmpty = strikeCount === 0;
-  const res = await fetch(SERVER_STATE_API, {
+  const res = await fetchWithRetry(SERVER_STATE_API, {
     method:"POST",
     credentials:"same-origin",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({ state, allowEmpty })
-  });
+  }, { retries:3, baseDelayMs:1000, timeoutMs:20000 });
   if (!res.ok){
     if (res.status === 401 && !isLocalBypassAuthMode()){
       // Keep UX clear when backend session is gone but UI was still in admin mode.
@@ -9756,6 +9834,7 @@ async function saveStateToServer(stateOverride = null){
   }
   const data = await res.json();
   if (typeof data?.savedAt === "string") lastServerSavedAt = data.savedAt;
+  saveCachedLiveState({ savedAt: lastServerSavedAt, state });
   return data;
 }
 function scheduleServerAutosave(){
@@ -9774,7 +9853,8 @@ function scheduleServerAutosave(){
       await saveStateToServer();
       setStateStatus("autosaved locally + server");
     }catch(err){
-      setStateStatus(`autosaved locally (server save failed: ${err?.message || err})`);
+      serverAutosaveQueued = true;
+      setStateStatus(`autosaved locally (server save failed, retrying: ${err?.message || err})`);
     }finally{
       serverAutosaveInFlight = false;
       if (serverAutosaveQueued) scheduleServerAutosave();
@@ -9798,7 +9878,8 @@ async function flushServerAutosaveNow(){
     await saveStateToServer();
     setStateStatus("autosaved locally + server");
   }catch(err){
-    setStateStatus(`autosaved locally (server save failed: ${err?.message || err})`);
+    serverAutosaveQueued = true;
+    setStateStatus(`autosaved locally (server save failed, retrying: ${err?.message || err})`);
   }finally{
     serverAutosaveInFlight = false;
   }
@@ -9855,8 +9936,10 @@ async function publishLiveDefaultState(){
     await saveStateToServer(state);
     setStateStatus(`published live default (${strikeCount} strikes)`);
   }catch(err){
-    alert("Live publish failed: " + (err?.message || String(err)));
-    setStateStatus("live publish failed");
+    serverAutosaveQueued = true;
+    scheduleServerAutosave();
+    alert("Live publish failed right now; queued automatic retry. Error: " + (err?.message || String(err)));
+    setStateStatus("live publish failed (retry queued)");
   }
 }
 
@@ -9985,8 +10068,10 @@ async function saveHtml(){
       await saveStateToServer();
       setStateStatus("saved to live server state");
     }catch(err){
-      alert("Live save failed: " + (err?.message || String(err)));
-      setStateStatus("live save failed");
+      serverAutosaveQueued = true;
+      scheduleServerAutosave();
+      alert("Live save failed right now; queued automatic retry. Error: " + (err?.message || String(err)));
+      setStateStatus("live save failed (retry queued)");
     }
     return;
   }
@@ -10500,6 +10585,19 @@ map.on("load", async () => {
       }
     }
     try{
+      if (!loaded){
+        if (canUseServerState()){
+          const cachedLive = loadCachedLiveState();
+          if (cachedLive?.state && Array.isArray(cachedLive.state.strikes) && cachedLive.state.strikes.length){
+            if (typeof cachedLive.savedAt === "string") lastServerSavedAt = cachedLive.savedAt;
+            loadFromObject(cachedLive.state);
+            autosaveLocal({ skipServer:true });
+            setStateStatus(liveStateFetchFailed ? "loaded cached live state (network retry in background)" : "loaded cached live state");
+            loaded = true;
+            loadedFromFallback = true;
+          }
+        }
+      }
       if (!loaded){
         if (canUseServerState() && isAdminMode()){
           const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY);
