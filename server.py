@@ -26,6 +26,7 @@ INDEX_FILE = os.getenv("INDEX_FILE", "index.html")
 DEFAULT_STATE_FILE = Path("/var/data/live_state.json") if Path("/var/data").exists() else (ROOT_DIR / "live_state.json")
 STATE_FILE = Path(os.getenv("STATE_FILE", str(DEFAULT_STATE_FILE)))
 STATE_BACKUP_FILE = Path(os.getenv("STATE_BACKUP_FILE", str(STATE_FILE.with_suffix(".backup.json"))))
+STATE_LITE_FILE = Path(os.getenv("STATE_LITE_FILE", str(STATE_FILE.with_name(STATE_FILE.stem + ".lite.json"))))
 MAX_STATE_BYTES = int(os.getenv("MAX_STATE_BYTES", "0"))
 DEFAULT_VIEWER_EMAIL_FILE = Path("/var/data/viewer_email_gate.json") if Path("/var/data").exists() else (ROOT_DIR / "viewer_email_gate.json")
 VIEWER_EMAIL_FILE = Path(os.getenv("VIEWER_EMAIL_FILE", str(DEFAULT_VIEWER_EMAIL_FILE)))
@@ -391,7 +392,7 @@ class AppHandler(SimpleHTTPRequestHandler):
             email_data = read_viewer_email_data()
             email_entries = email_data.get("entries", [])
             email_by_ip = email_data.get("byIp", {})
-            state_payload = read_state_payload()
+            state_payload = read_state_lite_payload() or read_state_payload()
             state_obj = state_payload.get("state", {}) if isinstance(state_payload, dict) else {}
             strikes = state_obj.get("strikes", []) if isinstance(state_obj, dict) else []
             strike_reports = read_strike_reports(limit=MAX_STRIKE_REPORTS)
@@ -418,14 +419,15 @@ class AppHandler(SimpleHTTPRequestHandler):
             )
             return
         if path == "/api/state":
-            payload = read_state_payload()
+            q = parse_qs(parsed.query or "")
+            lite = str(q.get("lite", ["0"])[0]).lower() in {"1", "true", "yes"}
+            payload = read_state_lite_payload() if lite else read_state_payload()
+            if payload is None and lite:
+                full = read_state_payload()
+                payload = make_lite_state_payload(full) if isinstance(full, dict) else None
             if payload is None:
                 self.end_json(HTTPStatus.OK, {"ok": True, "state": None})
             else:
-                q = parse_qs(parsed.query or "")
-                lite = str(q.get("lite", ["0"])[0]).lower() in {"1", "true", "yes"}
-                if lite:
-                    payload = make_lite_state_payload(payload)
                 self.end_json(HTTPStatus.OK, payload)
             return
         if path == "/api/strike-images":
@@ -648,7 +650,7 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.end_json(HTTPStatus.BAD_REQUEST, {"error": "missing request body"})
                 return
             # Hard safety ceiling to avoid service instability on oversized saves.
-            absolute_limit = int(os.getenv("ABSOLUTE_MAX_STATE_BYTES", str(200 * 1024 * 1024)))
+            absolute_limit = int(os.getenv("ABSOLUTE_MAX_STATE_BYTES", str(300 * 1024 * 1024)))
             if absolute_limit > 0 and content_length > absolute_limit:
                 limit_mb = round(absolute_limit / (1024 * 1024), 2)
                 self.end_json(
@@ -670,20 +672,17 @@ class AppHandler(SimpleHTTPRequestHandler):
                 return
             allow_empty = bool(body.get("allowEmpty", False))
             incoming_strikes = state.get("strikes")
-            existing = read_state_payload()
-            existing_count = len(existing.get("state", {}).get("strikes", [])) if existing and isinstance(existing.get("state"), dict) else 0
             incoming_count = len(incoming_strikes) if isinstance(incoming_strikes, list) else 0
             # Safety lock: avoid accidental wipe of live markers.
-            if existing_count > 0 and incoming_count == 0 and not allow_empty:
+            if incoming_count == 0 and not allow_empty:
                 self.end_json(
                     HTTPStatus.CONFLICT,
                     {
-                        "error": "refusing to overwrite live state with 0 strikes; pass allowEmpty=true to force",
-                        "existingStrikeCount": existing_count,
+                        "error": "refusing to overwrite live state with 0 strikes; pass allowEmpty=true to force"
                     },
                 )
                 return
-            preserved_reports = existing.get("strikeReports", []) if isinstance(existing, dict) else []
+            preserved_reports = body.get("strikeReports", [])
             if not isinstance(preserved_reports, list):
                 preserved_reports = read_strike_reports(limit=MAX_STRIKE_REPORTS)
             saved_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -990,15 +989,46 @@ def read_state_payload():
         return None
 
 
+def read_state_lite_payload():
+    try:
+        if not STATE_LITE_FILE.exists():
+            return None
+        raw = STATE_LITE_FILE.read_text(encoding="utf-8")
+        if not raw.strip():
+            return None
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return None
+        state = data.get("state")
+        if not isinstance(state, dict):
+            return None
+        return {
+            "ok": True,
+            "savedAt": data.get("savedAt"),
+            "state": state,
+            "lite": True,
+        }
+    except Exception:
+        return None
+
+
 def write_state_payload(payload: dict):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     STATE_BACKUP_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_LITE_FILE.parent.mkdir(parents=True, exist_ok=True)
     body = json.dumps(payload, separators=(",", ":"))
+    lite_payload = make_lite_state_payload(payload) if isinstance(payload, dict) else None
+    lite_body = json.dumps(lite_payload, separators=(",", ":")) if isinstance(lite_payload, dict) else ""
     with STATE_WRITE_LOCK:
         # Unique temp names prevent collisions across threaded concurrent writes.
         tmp = STATE_FILE.with_suffix(STATE_FILE.suffix + f".{secrets.token_hex(6)}.tmp")
         tmp.write_text(body, encoding="utf-8")
         tmp.replace(STATE_FILE)
+        # Keep a dedicated lite snapshot for fast viewer polling/loading.
+        if lite_body:
+            lite_tmp = STATE_LITE_FILE.with_suffix(STATE_LITE_FILE.suffix + f".{secrets.token_hex(6)}.tmp")
+            lite_tmp.write_text(lite_body, encoding="utf-8")
+            lite_tmp.replace(STATE_LITE_FILE)
         # Backup snapshots are useful, but writing them every autosave is expensive.
         should_write_backup = True
         try:
