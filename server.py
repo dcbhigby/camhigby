@@ -84,6 +84,12 @@ STRIKE_REPORT_RATE_MAX_ATTEMPTS = int(os.getenv("STRIKE_REPORT_RATE_MAX_ATTEMPTS
 VIEWER_EMAIL_RATE_WINDOW_SEC = int(os.getenv("VIEWER_EMAIL_RATE_WINDOW_SEC", "300"))
 VIEWER_EMAIL_RATE_MAX_ATTEMPTS = int(os.getenv("VIEWER_EMAIL_RATE_MAX_ATTEMPTS", "12"))
 
+LEGACY_STATE_FILE = ROOT_DIR / "live_state.json"
+LEGACY_STATE_BACKUP_FILE = ROOT_DIR / "live_state.backup.json"
+LEGACY_VIEWER_EMAIL_FILE = ROOT_DIR / "viewer_email_gate.json"
+LEGACY_STRIKE_REPORTS_FILE = ROOT_DIR / "strike_reports.json"
+LEGACY_MANUAL_REPORTS_FILE = ROOT_DIR / "manual_reports.json"
+
 
 def now_ts() -> int:
     return int(time.time())
@@ -963,7 +969,7 @@ class AppHandler(SimpleHTTPRequestHandler):
 
 def read_state_payload():
     try:
-        for p in (STATE_FILE, STATE_BACKUP_FILE):
+        for p in (STATE_FILE, STATE_BACKUP_FILE, LEGACY_STATE_FILE, LEGACY_STATE_BACKUP_FILE):
             if not p.exists():
                 continue
             raw = p.read_text(encoding="utf-8")
@@ -2170,12 +2176,49 @@ def fetch_free_sources_reports(query: str, channels: list, limit: int) -> list:
 def main():
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
+    bootstrap_persistent_storage()
     server = ThreadingHTTPServer((host, port), AppHandler)
     print(f"Serving on http://{host}:{port}")
     print("Set ADMIN_USERNAME and ADMIN_PASSWORD_HASH (PBKDF2) for production.")
     print("Compatibility fallback: ADMIN_PASSWORD is accepted only when hash is not configured.")
     print(f"State file: {STATE_FILE}")
     server.serve_forever()
+
+
+def _migrate_file_if_missing(src: Path, dst: Path):
+    try:
+        if src.resolve() == dst.resolve():
+            return False
+    except Exception:
+        pass
+    try:
+        if dst.exists():
+            return False
+        if not src.exists():
+            return False
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        tmp = dst.with_suffix(dst.suffix + f".{secrets.token_hex(6)}.tmp")
+        tmp.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        tmp.replace(dst)
+        return True
+    except Exception:
+        return False
+
+
+def bootstrap_persistent_storage():
+    migrated = []
+    if _migrate_file_if_missing(LEGACY_STATE_FILE, STATE_FILE):
+        migrated.append(("state", str(LEGACY_STATE_FILE), str(STATE_FILE)))
+    if _migrate_file_if_missing(LEGACY_STATE_BACKUP_FILE, STATE_BACKUP_FILE):
+        migrated.append(("state backup", str(LEGACY_STATE_BACKUP_FILE), str(STATE_BACKUP_FILE)))
+    if _migrate_file_if_missing(LEGACY_VIEWER_EMAIL_FILE, VIEWER_EMAIL_FILE):
+        migrated.append(("viewer emails", str(LEGACY_VIEWER_EMAIL_FILE), str(VIEWER_EMAIL_FILE)))
+    if _migrate_file_if_missing(LEGACY_STRIKE_REPORTS_FILE, STRIKE_REPORTS_FILE):
+        migrated.append(("strike reports", str(LEGACY_STRIKE_REPORTS_FILE), str(STRIKE_REPORTS_FILE)))
+    if _migrate_file_if_missing(LEGACY_MANUAL_REPORTS_FILE, MANUAL_REPORTS_FILE):
+        migrated.append(("manual reports", str(LEGACY_MANUAL_REPORTS_FILE), str(MANUAL_REPORTS_FILE)))
+    for name, src, dst in migrated:
+        print(f"Migrated {name}: {src} -> {dst}")
 
 
 if __name__ == "__main__":
