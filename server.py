@@ -648,7 +648,7 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.end_json(HTTPStatus.BAD_REQUEST, {"error": "missing request body"})
                 return
             # Hard safety ceiling to avoid service instability on oversized saves.
-            absolute_limit = int(os.getenv("ABSOLUTE_MAX_STATE_BYTES", str(50 * 1024 * 1024)))
+            absolute_limit = int(os.getenv("ABSOLUTE_MAX_STATE_BYTES", str(200 * 1024 * 1024)))
             if absolute_limit > 0 and content_length > absolute_limit:
                 limit_mb = round(absolute_limit / (1024 * 1024), 2)
                 self.end_json(
